@@ -1,0 +1,181 @@
+import FreeRange.Range
+
+namespace FreeRange
+
+/-- The six input-to-constant comparisons supported by branch refinement. -/
+inductive Comparison where
+  | eq
+  | ne
+  | lt
+  | le
+  | gt
+  | ge
+  deriving Repr, DecidableEq, BEq
+
+namespace Comparison
+
+/-- Concrete exact-integer meaning of a comparison. -/
+def Holds : Comparison → Int → Int → Prop
+  | .eq, left, right => left = right
+  | .ne, left, right => left ≠ right
+  | .lt, left, right => left < right
+  | .le, left, right => left ≤ right
+  | .gt, left, right => left > right
+  | .ge, left, right => left ≥ right
+
+instance (comparison : Comparison) (left right : Int) :
+    Decidable (comparison.Holds left right) :=
+  match comparison with
+  | .eq => inferInstanceAs (Decidable (left = right))
+  | .ne => inferInstanceAs (Decidable (left ≠ right))
+  | .lt => inferInstanceAs (Decidable (left < right))
+  | .le => inferInstanceAs (Decidable (left ≤ right))
+  | .gt => inferInstanceAs (Decidable (left > right))
+  | .ge => inferInstanceAs (Decidable (left ≥ right))
+
+end Comparison
+
+/-- A guard compares one input with a fixed exact integer. -/
+structure Guard (inputCount : Nat) where
+  input : Fin inputCount
+  comparison : Comparison
+  constant : Int
+  deriving Repr, DecidableEq, BEq
+
+/-- The embedded exact-integer expression language analyzed by FreeRange. -/
+inductive Expr (inputCount : Nat) where
+  | const (value : Int)
+  | input (index : Fin inputCount)
+  | neg (value : Expr inputCount)
+  | add (left right : Expr inputCount)
+  | sub (left right : Expr inputCount)
+  | mul (left right : Expr inputCount)
+  | div (dividend divisor : Expr inputCount)
+  | minimum (left right : Expr inputCount)
+  | maximum (left right : Expr inputCount)
+  | absolute (value : Expr inputCount)
+  | ite (guard : Guard inputCount) (thenBranch elseBranch : Expr inputCount)
+  deriving Repr, DecidableEq, BEq
+
+/-- One named input for readable expression and guard construction. -/
+structure Var (inputCount : Nat) where
+  index : Fin inputCount
+  deriving Repr, DecidableEq, BEq
+
+namespace Var
+
+/-- Use a variable as an embedded expression. -/
+def expr (inputVar : Var inputCount) : Expr inputCount := .input inputVar.index
+
+/-- Compare a variable with an exact integer. -/
+def guard (inputVar : Var inputCount) (comparison : Comparison) (constant : Int) :
+    Guard inputCount :=
+  ⟨inputVar.index, comparison, constant⟩
+
+instance : Coe (Var inputCount) (Expr inputCount) := ⟨expr⟩
+
+end Var
+
+instance (value : Nat) : OfNat (Expr inputCount) value where
+  ofNat := .const (Int.ofNat value)
+
+instance : Neg (Expr inputCount) where
+  neg := .neg
+
+instance : HAdd (Expr inputCount) (Expr inputCount) (Expr inputCount) where
+  hAdd := .add
+
+instance : HSub (Expr inputCount) (Expr inputCount) (Expr inputCount) where
+  hSub := .sub
+
+instance : HMul (Expr inputCount) (Expr inputCount) (Expr inputCount) where
+  hMul := .mul
+
+instance : HDiv (Expr inputCount) (Expr inputCount) (Expr inputCount) where
+  hDiv := .div
+
+/-- Build a guard that tests equality with a constant. -/
+infix:50 " =ᵍ " => fun inputVar constant => Var.guard inputVar Comparison.eq constant
+
+/-- Build a guard that tests disequality with a constant. -/
+infix:50 " ≠ᵍ " => fun inputVar constant => Var.guard inputVar Comparison.ne constant
+
+/-- Build a guard that tests strict inequality with a constant. -/
+infix:50 " <ᵍ " => fun inputVar constant => Var.guard inputVar Comparison.lt constant
+
+/-- Build a guard that tests non-strict inequality with a constant. -/
+infix:50 " ≤ᵍ " => fun inputVar constant => Var.guard inputVar Comparison.le constant
+
+/-- Build a guard that tests strict greater-than with a constant. -/
+infix:50 " >ᵍ " => fun inputVar constant => Var.guard inputVar Comparison.gt constant
+
+/-- Build a guard that tests non-strict greater-than with a constant. -/
+infix:50 " ≥ᵍ " => fun inputVar constant => Var.guard inputVar Comparison.ge constant
+
+/-- An embedded conditional expression. -/
+def ifE (guard : Guard inputCount) (thenBranch elseBranch : Expr inputCount) :
+    Expr inputCount :=
+  .ite guard thenBranch elseBranch
+
+/-- Embedded exact-integer minimum. -/
+def minE (left right : Expr inputCount) : Expr inputCount := .minimum left right
+
+/-- Embedded exact-integer maximum. -/
+def maxE (left right : Expr inputCount) : Expr inputCount := .maximum left right
+
+/-- Embedded exact-integer absolute value. -/
+def absE (value : Expr inputCount) : Expr inputCount := .absolute value
+
+/-- A concrete assignment to every expression input. -/
+abbrev Env (inputCount : Nat) := Fin inputCount → Int
+
+/-- An abstract range for every expression input. -/
+abbrev Context (inputCount : Nat) := Fin inputCount → AbstractNumber
+
+namespace Guard
+
+/-- Whether a concrete environment takes a guard's true branch. -/
+def Holds (guard : Guard inputCount) (environment : Env inputCount) : Prop :=
+  guard.comparison.Holds (environment guard.input) guard.constant
+
+instance (guard : Guard inputCount) (environment : Env inputCount) :
+    Decidable (guard.Holds environment) :=
+  inferInstanceAs (Decidable (guard.comparison.Holds (environment guard.input) guard.constant))
+
+end Guard
+
+namespace Expr
+
+/-- Evaluate an embedded expression. Division by zero is the only failure. -/
+def eval (environment : Env inputCount) : Expr inputCount → Option Int
+  | .const value => some value
+  | .input index => some (environment index)
+  | .neg value => return -(← value.eval environment)
+  | .add left right => return (← left.eval environment) + (← right.eval environment)
+  | .sub left right => return (← left.eval environment) - (← right.eval environment)
+  | .mul left right => return (← left.eval environment) * (← right.eval environment)
+  | .div dividend divisor => do
+      let dividendValue ← dividend.eval environment
+      let divisorValue ← divisor.eval environment
+      if divisorValue = 0 then none else some (dividendValue / divisorValue)
+  | .minimum left right => return intMin (← left.eval environment) (← right.eval environment)
+  | .maximum left right => return intMax (← left.eval environment) (← right.eval environment)
+  | .absolute value => return Interval.intAbs (← value.eval environment)
+  | .ite guard thenBranch elseBranch =>
+      if guard.Holds environment then thenBranch.eval environment else elseBranch.eval environment
+
+end Expr
+
+namespace Context
+
+/-- A context covers an environment when every concrete input inhabits its abstract range. -/
+def Covers (context : Context inputCount) (environment : Env inputCount) : Prop :=
+  ∀ index, (context index).Mem (environment index)
+
+end Context
+
+/-- An expression is safe under a context when evaluation succeeds for every covered environment. -/
+def Safe (context : Context inputCount) (expression : Expr inputCount) : Prop :=
+  ∀ environment, context.Covers environment → ∃ value, expression.eval environment = some value
+
+end FreeRange

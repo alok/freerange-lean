@@ -237,6 +237,127 @@ theorem mem_scale {interval : Interval} {coefficient value : Int}
             simp [scale, hzero, hpositive, Mem, LowerBound.Holds, UpperBound.Holds] at h ⊢
             exact Int.mul_le_mul_of_nonpos_left hnonpositive h
 
+/-- The least of the four endpoint products for two finite intervals. -/
+def productLower (leftLower leftUpper rightLower rightUpper : Int) : Int :=
+  intMin (intMin (leftLower * rightLower) (leftLower * rightUpper))
+    (intMin (leftUpper * rightLower) (leftUpper * rightUpper))
+
+/-- The greatest of the four endpoint products for two finite intervals. -/
+def productUpper (leftLower leftUpper rightLower rightUpper : Int) : Int :=
+  intMax (intMax (leftLower * rightLower) (leftLower * rightUpper))
+    (intMax (leftUpper * rightLower) (leftUpper * rightUpper))
+
+/-- The standard four-corner interval hull of two finite closed intervals. -/
+def productHull (leftLower leftUpper rightLower rightUpper : Int) : Interval :=
+  closed (productLower leftLower leftUpper rightLower rightUpper)
+    (productUpper leftLower leftUpper rightLower rightUpper)
+
+private theorem productLower_le_leftLower_rightLower (a b c d : Int) :
+    productLower a b c d ≤ a * c := by
+  grind [productLower, intMin]
+
+private theorem productLower_le_leftLower_rightUpper (a b c d : Int) :
+    productLower a b c d ≤ a * d := by
+  grind [productLower, intMin]
+
+private theorem productLower_le_leftUpper_rightLower (a b c d : Int) :
+    productLower a b c d ≤ b * c := by
+  grind [productLower, intMin]
+
+private theorem productLower_le_leftUpper_rightUpper (a b c d : Int) :
+    productLower a b c d ≤ b * d := by
+  grind [productLower, intMin]
+
+private theorem leftLower_rightLower_le_productUpper (a b c d : Int) :
+    a * c ≤ productUpper a b c d := by
+  grind [productUpper, intMax]
+
+private theorem leftLower_rightUpper_le_productUpper (a b c d : Int) :
+    a * d ≤ productUpper a b c d := by
+  grind [productUpper, intMax]
+
+private theorem leftUpper_rightLower_le_productUpper (a b c d : Int) :
+    b * c ≤ productUpper a b c d := by
+  grind [productUpper, intMax]
+
+private theorem leftUpper_rightUpper_le_productUpper (a b c d : Int) :
+    b * d ≤ productUpper a b c d := by
+  grind [productUpper, intMax]
+
+/-- Every product of members of two finite intervals lies in their four-corner hull. -/
+theorem mem_productHull {a b c d x y : Int}
+    (hx : (closed a b).Mem x) (hy : (closed c d).Mem y) :
+    (productHull a b c d).Mem (x * y) := by
+  change a ≤ x ∧ x ≤ b at hx
+  change c ≤ y ∧ y ≤ d at hy
+  change productLower a b c d ≤ x * y ∧ x * y ≤ productUpper a b c d
+  constructor
+  · by_cases hxnonnegative : 0 ≤ x
+    · have hxcxy : x * c ≤ x * y :=
+        Int.mul_le_mul_of_nonneg_left hy.1 hxnonnegative
+      by_cases hcnonnegative : 0 ≤ c
+      · exact Int.le_trans (productLower_le_leftLower_rightLower a b c d) <|
+          Int.le_trans (Int.mul_le_mul_of_nonneg_right hx.1 hcnonnegative) hxcxy
+      · have hcnonpositive : c ≤ 0 := by omega
+        exact Int.le_trans (productLower_le_leftUpper_rightLower a b c d) <|
+          Int.le_trans (Int.mul_le_mul_of_nonpos_right hx.2 hcnonpositive) hxcxy
+    · have hxnonpositive : x ≤ 0 := by omega
+      have hxdxy : x * d ≤ x * y :=
+        Int.mul_le_mul_of_nonpos_left hxnonpositive hy.2
+      by_cases hdnonnegative : 0 ≤ d
+      · exact Int.le_trans (productLower_le_leftLower_rightUpper a b c d) <|
+          Int.le_trans (Int.mul_le_mul_of_nonneg_right hx.1 hdnonnegative) hxdxy
+      · have hdnonpositive : d ≤ 0 := by omega
+        exact Int.le_trans (productLower_le_leftUpper_rightUpper a b c d) <|
+          Int.le_trans (Int.mul_le_mul_of_nonpos_right hx.2 hdnonpositive) hxdxy
+  · by_cases hxnonnegative : 0 ≤ x
+    · have hxyd : x * y ≤ x * d :=
+        Int.mul_le_mul_of_nonneg_left hy.2 hxnonnegative
+      by_cases hdnonnegative : 0 ≤ d
+      · exact Int.le_trans hxyd <| Int.le_trans
+          (Int.mul_le_mul_of_nonneg_right hx.2 hdnonnegative)
+          (leftUpper_rightUpper_le_productUpper a b c d)
+      · have hdnonpositive : d ≤ 0 := by omega
+        exact Int.le_trans hxyd <| Int.le_trans
+          (Int.mul_le_mul_of_nonpos_right hx.1 hdnonpositive)
+          (leftLower_rightUpper_le_productUpper a b c d)
+    · have hxnonpositive : x ≤ 0 := by omega
+      have hxyc : x * y ≤ x * c :=
+        Int.mul_le_mul_of_nonpos_left hxnonpositive hy.1
+      by_cases hcnonnegative : 0 ≤ c
+      · exact Int.le_trans hxyc <| Int.le_trans
+          (Int.mul_le_mul_of_nonneg_right hx.2 hcnonnegative)
+          (leftUpper_rightLower_le_productUpper a b c d)
+      · have hcnonpositive : c ≤ 0 := by omega
+        exact Int.le_trans hxyc <| Int.le_trans
+          (Int.mul_le_mul_of_nonpos_right hx.1 hcnonpositive)
+          (leftLower_rightLower_le_productUpper a b c d)
+
+/-- Interval multiplication, using a four-corner hull when all endpoints are finite. -/
+def mul (left right : Interval) : Interval :=
+  match left.lower, left.upper, right.lower, right.upper with
+  | .finite leftLower, .finite leftUpper, .finite rightLower, .finite rightUpper =>
+      productHull leftLower leftUpper rightLower rightUpper
+  | _, _, _, _ => top
+
+theorem mem_mul {left right : Interval} {x y : Int}
+    (hx : left.Mem x) (hy : right.Mem y) : (left.mul right).Mem (x * y) := by
+  rcases left with ⟨leftLower, leftUpper⟩
+  rcases right with ⟨rightLower, rightUpper⟩
+  cases leftLower with
+  | negInf => simp [mul, top, Mem, LowerBound.Holds, UpperBound.Holds]
+  | finite leftLower =>
+      cases leftUpper with
+      | posInf => simp [mul, top, Mem, LowerBound.Holds, UpperBound.Holds]
+      | finite leftUpper =>
+          cases rightLower with
+          | negInf => simp [mul, top, Mem, LowerBound.Holds, UpperBound.Holds]
+          | finite rightLower =>
+              cases rightUpper with
+              | posInf => simp [mul, top, Mem, LowerBound.Holds, UpperBound.Holds]
+              | finite rightUpper =>
+                  simpa [mul] using mem_productHull hx hy
+
 /-- Intersect an interval with a finite lower bound. -/
 def restrictLower (interval : Interval) (lower : Int) : Interval :=
   ⟨interval.lower.max (.finite lower), interval.upper⟩
@@ -584,14 +705,18 @@ theorem mem_restrictUpper {abstract : AbstractNumber} {upper value : Int}
   apply mem_normalize_iff.mpr
   exact ⟨Interval.mem_restrictUpper hmem.1 hbound, hmem.2⟩
 
-/-- Abstract multiplication. It is precise when either operand is exact and otherwise returns top. -/
+private def mulExclusion (left right : AbstractNumber) : Option Int :=
+  if left.pointExcluded 0 = true ∧ right.pointExcluded 0 = true then some 0 else none
+
+/-- Abstract multiplication, exact for constants and bounded by the finite four-corner hull. -/
 def mul (left right : AbstractNumber) : AbstractNumber :=
   match left.exactValue? with
   | some coefficient => right.scale coefficient
   | none =>
       match right.exactValue? with
       | some coefficient => left.scale coefficient
-      | none => top
+      | none =>
+          (⟨left.interval.mul right.interval, mulExclusion left right⟩ : AbstractNumber).normalize
 
 theorem mem_mul {left right : AbstractNumber} {x y : Int}
     (hx : left.Mem x) (hy : right.Mem y) : (mul left right).Mem (x * y) := by
@@ -608,7 +733,23 @@ theorem mem_mul {left right : AbstractNumber} {x y : Int}
           simpa [mul, hleft, hright, Int.mul_comm] using
             (mem_scale (coefficient := coefficient) hx)
       | none =>
-          simp [mul, hleft, hright, top, Mem, Interval.mem_top]
+          simp only [mul, hleft, hright]
+          apply mem_normalize_iff.mpr
+          refine ⟨Interval.mem_mul hx.1 hy.1, ?_⟩
+          change mulExclusion left right ≠ some (x * y)
+          by_cases hpoints :
+              left.pointExcluded 0 = true ∧ right.pointExcluded 0 = true
+          · have hxNonzero : x ≠ 0 := by
+              intro hzero
+              subst x
+              exact not_mem_of_pointExcluded hpoints.1 hx
+            have hyNonzero : y ≠ 0 := by
+              intro hzero
+              subst y
+              exact not_mem_of_pointExcluded hpoints.2 hy
+            have hproduct : x * y ≠ 0 := Int.mul_ne_zero hxNonzero hyNonzero
+            simpa [mulExclusion, hpoints, eq_comm] using hproduct
+          · simp [mulExclusion, hpoints]
 
 /-- Abstract integer minimum. -/
 def minimum (left right : AbstractNumber) : AbstractNumber :=

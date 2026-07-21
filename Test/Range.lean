@@ -40,6 +40,37 @@ namespace FreeRangeTest.Range
 
 #guard AbstractNumber.mul AbstractNumber.top AbstractNumber.top == AbstractNumber.top
 
+#guard AbstractNumber.mul (AbstractNumber.closed 1 4) (AbstractNumber.closed 2 3) ==
+  AbstractNumber.closed 2 12
+
+#guard AbstractNumber.mul (AbstractNumber.closed 1 4) (AbstractNumber.closed (-3) (-2)) ==
+  AbstractNumber.closed (-12) (-2)
+
+#guard AbstractNumber.mul (AbstractNumber.closed (-4) (-1)) (AbstractNumber.closed 2 3) ==
+  AbstractNumber.closed (-12) (-2)
+
+#guard AbstractNumber.mul (AbstractNumber.closed (-4) (-1))
+    (AbstractNumber.closed (-3) (-2)) == AbstractNumber.closed 2 12
+
+#guard AbstractNumber.mul (AbstractNumber.closed (-2) 3) (AbstractNumber.closed (-4) 5) ==
+  AbstractNumber.closed (-12) 15
+
+#guard AbstractNumber.mul (AbstractNumber.atLeast 1) (AbstractNumber.closed 2 3) ==
+  { interval := Interval.top, excluded := some 0 }
+
+#guard AbstractNumber.mul (AbstractNumber.top.exclude 0) (AbstractNumber.top.exclude 0) ==
+  { interval := Interval.top, excluded := some 0 }
+
+#guard AbstractNumber.mul (AbstractNumber.top.exclude 0) AbstractNumber.top ==
+  AbstractNumber.top
+
+#guard AbstractNumber.mul (AbstractNumber.exact (-3)) (AbstractNumber.closed 1 4) ==
+  AbstractNumber.closed (-12) (-3)
+
+example :
+    (Interval.mul (Interval.closed (-2) 3) (Interval.closed (-4) 5)).Mem (3 * (-4)) :=
+  Interval.mem_mul (by decide) (by decide)
+
 example (number : AbstractNumber) : number.normalize.IsNormalized :=
   AbstractNumber.normalize_isNormalized number
 

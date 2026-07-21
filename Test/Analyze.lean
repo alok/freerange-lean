@@ -67,4 +67,6 @@ def splitAroundZero : Context 1 := fun _ =>
 
 #guard (analyze unconstrained (x.expr * x.expr)).number == .top
 
+#guard (analyze boundedHundred (x.expr * x.expr)).number == .closed 0 10000
+
 end FreeRangeTest.Analyze

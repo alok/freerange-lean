@@ -19,6 +19,8 @@ def boundedHundred : Context 1 := .singleton (.closed 0 100)
 
 def crossesZero : Context 1 := .singleton (.closed (-5) 5)
 
+def positiveDivisors : Context 1 := .singleton (.closed 2 5)
+
 def unconstrained : Context 1 := .uniform .top
 
 def unconstrainedPair : Context 2 := .uniform .top
@@ -33,6 +35,14 @@ def descriptiveNames : InputNames 2 := .ofVector #v["width", "height"]
 #guard report crossesZero (10 / x) ==
   "range: [-∞, +∞]\nrequires: x0 != 0"
 
+#guard report positiveDivisors (10 / x) ==
+  "range: [2, 5]\nrequires: none"
+
+#guard reportWithNames positiveDivisors (10 / x) (.singleton "divisor") ==
+  "range: [2, 5]\nrequires: none"
+
+#guard checkAt positiveDivisors (10 / x) (.singleton 3) == .value 3
+
 #guard (checkAt crossesZero (10 / x) (.singleton 0)).render ==
   "requirement failed: x0 != 0"
 
@@ -45,6 +55,9 @@ def descriptiveNames : InputNames 2 := .ofVector #v["width", "height"]
   "range: [-∞, +∞]\nrequires: x0 != 0\nrequires: (10 / x0) != 0"
 
 #guard checkAt unconstrained (ifE (x =ᵍ 0) 1 (10 / x)) (.singleton 0) == .value 1
+
+#guard report unconstrained (ifE (x >ᵍ 0) (10 / x) 0) ==
+  "range: [0, 10]\nrequires: none"
 
 #guard (x2 >ᵍ 0).renderWithNames descriptiveNames == "width > 0"
 

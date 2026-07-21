@@ -16,6 +16,8 @@ def boundedHundred : Context 1 := .singleton (.closed 0 100)
 
 def crossesZero : Context 1 := .singleton (.closed (-5) 5)
 
+def positiveDivisors : Context 1 := .singleton (.closed 2 5)
+
 def unconstrained : Context 1 := .uniform .top
 
 def addition : Expr 2 := x2 + y2
@@ -52,6 +54,9 @@ def main : IO UInt32 := do
     "range: [10, 90]\nrequires: none"
   let quotientOk ← expect "unguarded division" (report crossesZero quotient)
     "range: [-∞, +∞]\nrequires: x0 != 0"
+  let preciseQuotientOk ← expect "positive sign-stable division"
+    (report positiveDivisors quotient)
+    "range: [2, 5]\nrequires: none"
   let failedCheckOk ← expect "concrete x0 = 0"
     (checkAt crossesZero quotient (.singleton 0)).render
     "requirement failed: x0 != 0"
@@ -66,8 +71,9 @@ def main : IO UInt32 := do
     "range: [-∞, +∞]\nrequires: none"
   let wrongShiftOk ← expect "wrong-shift negative control" (report unconstrained wrongShift)
     "range: [-∞, +∞]\nrequires: (x0 - 4) != 0"
-  let allPassed := additionOk && multiplicationOk && clampOk && quotientOk && failedCheckOk &&
-    passingCheckOk && namedReportOk && guardedOk && shiftedOk && wrongShiftOk
+  let allPassed := additionOk && multiplicationOk && clampOk && quotientOk &&
+    preciseQuotientOk && failedCheckOk && passingCheckOk && namedReportOk && guardedOk &&
+    shiftedOk && wrongShiftOk
   if allPassed then
     IO.println "\nAll canonical checks passed."
     pure 0

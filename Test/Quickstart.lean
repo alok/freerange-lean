@@ -51,6 +51,8 @@ theorem boundedAdditionSound (environment : Env 2)
 
 def crossesZero : Context 1 := .singleton (.closed (-5) 5)
 
+def positiveDivisors : Context 1 := .singleton (.closed 2 5)
+
 def divisorName : InputNames 1 := .singleton "divisor"
 
 #guard reportWithNames crossesZero (10 / x) divisorName ==
@@ -61,5 +63,14 @@ def divisorName : InputNames 1 := .singleton "divisor"
 
 #guard (checkAt crossesZero (10 / x) (.singleton 2)).renderWithNames divisorName ==
   "value: 5"
+
+#guard reportWithNames positiveDivisors (10 / x) divisorName ==
+  "range: [2, 5]\nrequires: none"
+
+example : Safe positiveDivisors (10 / x) := by
+  freerange
+
+#guard report unconstrained (ifE (x >ᵍ 0) (10 / x) 0) ==
+  "range: [0, 10]\nrequires: none"
 
 end FreeRangeTest.Quickstart

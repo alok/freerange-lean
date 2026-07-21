@@ -2,6 +2,22 @@ import FreeRange.Soundness
 
 namespace FreeRange
 
+/-- A total presentation name for every embedded input. -/
+abbrev InputNames (inputCount : Nat) := Fin inputCount → String
+
+/-- The stable default input name used by existing reports. -/
+def defaultInputName (index : Fin inputCount) : String := s!"x{index.val}"
+
+namespace InputNames
+
+/-- A name map for a one-input expression. -/
+def singleton (name : String) : InputNames 1 := fun _ => name
+
+/-- Build a total input-name map from an exactly sized vector. -/
+def ofVector (names : Vector String inputCount) : InputNames inputCount := names.get
+
+end InputNames
+
 namespace LowerBound
 
 /-- Render a lower endpoint for a human-readable report. -/
@@ -54,56 +70,86 @@ end Comparison
 
 namespace Guard
 
+/-- Render a guard with caller-provided input names. -/
+def renderWithNames (guard : Guard inputCount) (inputNames : InputNames inputCount) : String :=
+  s!"{inputNames guard.input} {guard.comparison.render} {guard.constant}"
+
 /-- Render an input-to-constant guard. -/
 def render (guard : Guard inputCount) : String :=
-  s!"x{guard.input.val} {guard.comparison.render} {guard.constant}"
+  guard.renderWithNames defaultInputName
 
 end Guard
 
 namespace Expr
 
+/-- Render an embedded expression with caller-provided input names. -/
+def renderWithNames : (expression : Expr inputCount) → InputNames inputCount → String
+  | .const value, _ => toString value
+  | .input index, inputNames => inputNames index
+  | .neg value, inputNames => s!"(-{value.renderWithNames inputNames})"
+  | .add left right, inputNames =>
+      s!"({left.renderWithNames inputNames} + {right.renderWithNames inputNames})"
+  | .sub left right, inputNames =>
+      s!"({left.renderWithNames inputNames} - {right.renderWithNames inputNames})"
+  | .mul left right, inputNames =>
+      s!"({left.renderWithNames inputNames} * {right.renderWithNames inputNames})"
+  | .div dividend divisor, inputNames =>
+      s!"({dividend.renderWithNames inputNames} / {divisor.renderWithNames inputNames})"
+  | .minimum left right, inputNames =>
+      s!"min({left.renderWithNames inputNames}, {right.renderWithNames inputNames})"
+  | .maximum left right, inputNames =>
+      s!"max({left.renderWithNames inputNames}, {right.renderWithNames inputNames})"
+  | .absolute value, inputNames => s!"abs({value.renderWithNames inputNames})"
+  | .ite guard thenBranch elseBranch, inputNames =>
+      s!"if {guard.renderWithNames inputNames} then {thenBranch.renderWithNames inputNames} else {elseBranch.renderWithNames inputNames}"
+
 /-- Render an embedded expression with explicit binary parentheses. -/
-def render : Expr inputCount → String
-  | .const value => toString value
-  | .input index => s!"x{index.val}"
-  | .neg value => s!"(-{value.render})"
-  | .add left right => s!"({left.render} + {right.render})"
-  | .sub left right => s!"({left.render} - {right.render})"
-  | .mul left right => s!"({left.render} * {right.render})"
-  | .div dividend divisor => s!"({dividend.render} / {divisor.render})"
-  | .minimum left right => s!"min({left.render}, {right.render})"
-  | .maximum left right => s!"max({left.render}, {right.render})"
-  | .absolute value => s!"abs({value.render})"
-  | .ite guard thenBranch elseBranch =>
-      s!"if {guard.render} then {thenBranch.render} else {elseBranch.render}"
+def render (expression : Expr inputCount) : String :=
+  expression.renderWithNames defaultInputName
 
 end Expr
 
 namespace Requirement
 
+/-- Render an inferred caller requirement with caller-provided input names. -/
+def renderWithNames (requirement : Requirement inputCount)
+    (inputNames : InputNames inputCount) : String :=
+  match requirement with
+  | .nonzero expression => s!"{expression.renderWithNames inputNames} != 0"
+
 /-- Render an inferred caller requirement. -/
-def render : Requirement inputCount → String
-  | .nonzero expression => s!"{expression.render} != 0"
+def render (requirement : Requirement inputCount) : String :=
+  requirement.renderWithNames defaultInputName
 
 end Requirement
 
 namespace Analysis
 
-/-- Render a deterministic two-part range-and-requirements report. -/
-def render (analysis : Analysis inputCount) : String :=
+/-- Render a deterministic report with caller-provided input names. -/
+def renderWithNames (analysis : Analysis inputCount)
+    (inputNames : InputNames inputCount) : String :=
   let requirements :=
     match analysis.requirements with
     | [] => "requires: none"
     | requirements =>
         String.intercalate "\n" (requirements.map fun (requirement : Requirement inputCount) =>
-          s!"requires: {requirement.render}")
+          s!"requires: {requirement.renderWithNames inputNames}")
   s!"range: {analysis.number.render}\n{requirements}"
+
+/-- Render a deterministic two-part range-and-requirements report. -/
+def render (analysis : Analysis inputCount) : String :=
+  analysis.renderWithNames defaultInputName
 
 end Analysis
 
 /-- Analyze and render one expression. -/
 def report (context : Context inputCount) (expression : Expr inputCount) : String :=
   (analyze context expression).render
+
+/-- Analyze and render one expression with caller-provided input names. -/
+def reportWithNames (context : Context inputCount) (expression : Expr inputCount)
+    (inputNames : InputNames inputCount) : String :=
+  (analyze context expression).renderWithNames inputNames
 
 /-- The result of checking one concrete environment against an analysis. -/
 inductive CheckResult (inputCount : Nat) where
@@ -115,13 +161,20 @@ inductive CheckResult (inputCount : Nat) where
 
 namespace CheckResult
 
-/-- Render a concrete check result. -/
-def render : CheckResult inputCount → String
+/-- Render a concrete check result with caller-provided input names. -/
+def renderWithNames (result : CheckResult inputCount)
+    (inputNames : InputNames inputCount) : String :=
+  match result with
   | .inputOutsideContext index actualValue expected =>
-      s!"input x{index.val} = {actualValue} is outside {expected.render}"
-  | .requirementFailed requirement => s!"requirement failed: {requirement.render}"
+      s!"input {inputNames index} = {actualValue} is outside {expected.render}"
+  | .requirementFailed requirement =>
+      s!"requirement failed: {requirement.renderWithNames inputNames}"
   | .value resultValue => s!"value: {resultValue}"
   | .evaluationFailed => "evaluation failed after all inferred requirements passed"
+
+/-- Render a concrete check result. -/
+def render (result : CheckResult inputCount) : String :=
+  result.renderWithNames defaultInputName
 
 end CheckResult
 

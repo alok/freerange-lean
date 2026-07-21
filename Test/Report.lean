@@ -22,6 +22,10 @@ def crossesZero : Context 1 := fun _ => .closed (-5) 5
 
 def unconstrained : Context 1 := fun _ => .top
 
+def unconstrainedPair : Context 2 := .uniform .top
+
+def descriptiveNames : InputNames 2 := .ofVector #v["width", "height"]
+
 #guard report boundedPair (x2.expr + y2.expr) == "range: [3, 13]\nrequires: none"
 
 #guard report boundedHundred (maxE 10 (minE x.expr 90)) ==
@@ -42,5 +46,22 @@ def unconstrained : Context 1 := fun _ => .top
   "range: [-∞, +∞]\nrequires: x0 != 0\nrequires: (10 / x0) != 0"
 
 #guard checkAt unconstrained (ifE (x =ᵍ 0) 1 (10 / x.expr)) (fun _ => 0) == .value 1
+
+#guard (x2 >ᵍ 0).renderWithNames descriptiveNames == "width > 0"
+
+#guard ((ifE (x2 >ᵍ 0) (x2 + y2) (x2 - y2) : Expr 2).renderWithNames descriptiveNames) ==
+  "if width > 0 then (width + height) else (width - height)"
+
+#guard reportWithNames unconstrainedPair (10 / (x2 + y2)) descriptiveNames ==
+  "range: [-∞, +∞]\nrequires: (width + height) != 0"
+
+#guard reportWithNames unconstrainedPair (10 / (x2 + y2)) defaultInputName ==
+  report unconstrainedPair (10 / (x2 + y2))
+
+#guard (checkAt unconstrainedPair (10 / y2) (Env.ofVector #v[3, 0])).renderWithNames
+    descriptiveNames == "requirement failed: height != 0"
+
+#guard (checkAt boundedPair (x2 + y2) (Env.ofVector #v[0, 2])).renderWithNames
+    descriptiveNames == "input width = 0 is outside [1, 10]"
 
 end FreeRangeTest.Report

@@ -14,7 +14,7 @@ lean_exe freerange where
   root := `Main
 
 lean_lib Tests where
-  roots := #[`Test.Range, `Test.Expr, `Test.Analyze, `Test.Soundness]
+  roots := #[`Test.Range, `Test.Expr, `Test.Analyze, `Test.Soundness, `Test.Report]
 
 @[test_driver]
 lean_exe tests where

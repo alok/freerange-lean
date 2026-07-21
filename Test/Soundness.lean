@@ -1,4 +1,4 @@
-import FreeRange.Soundness
+import FreeRange.Tactic
 
 open FreeRange
 
@@ -13,12 +13,10 @@ def guarded : Expr 1 := ifE (x ≠ᵍ 0) (10 / x.expr) 0
 def shiftedGuard : Expr 1 := ifE (x ≠ᵍ 4) (10 / (x.expr - 4)) 0
 
 example : Safe unconstrained guarded := by
-  apply safe_of_no_requirements
-  native_decide
+  freerange
 
 example : Safe unconstrained shiftedGuard := by
-  apply safe_of_no_requirements
-  native_decide
+  freerange
 
 example : (Requirement.nonzero x.expr).check (fun _ => 2) = true := by
   native_decide

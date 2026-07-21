@@ -1,0 +1,21 @@
+cff-version: 1.2.0
+message: "If you use FreeRange Lean, please cite this software."
+title: "FreeRange Lean"
+type: software
+authors:
+  - family-names: "Singh"
+    given-names: "Alok"
+repository-code: "https://github.com/alok/freerange-lean"
+url: "https://github.com/alok/freerange-lean"
+license: MIT
+version: 0.2.0
+date-released: 2026-07-21
+abstract: >-
+  A pure Lean 4, proof-backed range analyzer for a finite embedded language over exact
+  integers, with inferred division-safety requirements and a whole-analyzer soundness theorem.
+keywords:
+  - Lean 4
+  - abstract interpretation
+  - range analysis
+  - theorem proving
+  - formal verification

@@ -15,16 +15,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - name: Build, test, and independently check declarations
+      - name: Build, test, and check declarations
         uses: leanprover/lean-action@v1
         with:
           build: true
           build-args: --wfail
           test: true
-          nanoda: true
-          nanoda-allow-sorry: false
+          leanchecker: true
 
       - name: Run the self-checking examples
         run: lake exe freerange

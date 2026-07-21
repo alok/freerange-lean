@@ -170,7 +170,7 @@ declaration. The tactic discharges its closed computation with kernel reduction,
 without `native_decide`'s generated axiom. On Lean 4.32.0, `#print axioms`
 reports only Lean's standard `propext`, `Classical.choice`, and `Quot.sound` for
 both public theorems and a representative theorem produced by `freerange`. CI
-also runs an independent `.olean` declaration audit.
+also runs Lean 4.32's bundled standalone `leanchecker` over the built environment.
 
 ## Precision boundary
 

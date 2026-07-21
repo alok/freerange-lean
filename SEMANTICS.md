@@ -193,8 +193,8 @@ declaration. With the pinned Lean 4.32.0 toolchain, the audit is:
 These are Lean's standard logical/quotient axioms, not project-specific assumptions.
 The compile-time audit also checks that a representative theorem produced by the
 `freerange` tactic has exactly the same set. CI builds and tests the package, runs
-the self-checking executable, rejects source placeholders, and asks `lean-action`'s
-independent declaration checker to inspect the produced `.olean` files.
+the self-checking executable, rejects source placeholders, and runs Lean 4.32's
+bundled standalone `leanchecker` over the built environment.
 
 As with ordinary Lean development, the final trust base includes Lean's kernel and
 the correctness of the concrete definitions being claimed as the intended model.

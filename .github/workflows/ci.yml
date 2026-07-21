@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build, test, and independently check declarations
+        uses: leanprover/lean-action@v1
+        with:
+          build: true
+          build-args: --wfail
+          test: true
+          nanoda: true
+          nanoda-allow-sorry: false
+
+      - name: Run the self-checking examples
+        run: lake exe freerange
+
+      - name: Reject proof placeholders and custom axioms
+        run: |
+          if rg -n '\b(sorry|admit|axiom|unsafe)\b' --glob '*.lean' .; then
+            echo 'Lean source contains a forbidden proof placeholder, custom axiom, or unsafe declaration.'
+            exit 1
+          fi
+
+      - name: Audit public theorem axioms
+        run: |
+          actual_axioms="$(printf 'import FreeRange\n#print axioms FreeRange.analyze_sound\n#print axioms FreeRange.safe_of_no_requirements\n' | lake env lean --stdin)"
+          expected_axioms="$(printf "%s\n%s" \
+            "'FreeRange.analyze_sound' depends on axioms: [propext, Classical.choice, Quot.sound]" \
+            "'FreeRange.safe_of_no_requirements' depends on axioms: [propext, Classical.choice, Quot.sound]")"
+          printf '%s\n' "$actual_axioms"
+          if [[ "$actual_axioms" != "$expected_axioms" ]]; then
+            echo 'The public theorem axiom set changed.'
+            exit 1
+          fi

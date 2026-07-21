@@ -364,6 +364,376 @@ theorem mem_mul {left right : Interval} {x y : Int}
               | finite rightUpper =>
                   simpa [mul] using mem_productHull hx hy
 
+/-- Divide every member of an interval by one exact integer. -/
+def edivConst (divisor : Int) (interval : Interval) : Interval :=
+  if divisor = 0 then
+    top
+  else if 0 < divisor then
+    let lower := match interval.lower with
+      | .negInf => .negInf
+      | .finite value => .finite (value / divisor)
+    let upper := match interval.upper with
+      | .finite value => .finite (value / divisor)
+      | .posInf => .posInf
+    ⟨lower, upper⟩
+  else
+    let lower := match interval.upper with
+      | .finite value => .finite (value / divisor)
+      | .posInf => .negInf
+    let upper := match interval.lower with
+      | .negInf => .posInf
+      | .finite value => .finite (value / divisor)
+    ⟨lower, upper⟩
+
+private theorem neg_ediv_neg (value divisor : Int) :
+    -(value / (-divisor)) = value / divisor := by
+  rw [Int.ediv_neg, Int.neg_neg]
+
+private theorem ediv_reverses_of_neg {a b divisor : Int}
+    (hdivisor : divisor < 0) (h : a ≤ b) : b / divisor ≤ a / divisor := by
+  have hpositive : 0 < -divisor := by omega
+  have hdivided : a / (-divisor) ≤ b / (-divisor) :=
+    Int.ediv_le_ediv hpositive h
+  have hnegated : -(b / (-divisor)) ≤ -(a / (-divisor)) :=
+    Int.neg_le_neg hdivided
+  calc
+    b / divisor = -(b / (-divisor)) := (neg_ediv_neg b divisor).symm
+    _ ≤ -(a / (-divisor)) := hnegated
+    _ = a / divisor := neg_ediv_neg a divisor
+
+theorem mem_edivConst {interval : Interval} {divisor value : Int}
+    (h : interval.Mem value) : (edivConst divisor interval).Mem (value / divisor) := by
+  by_cases hzero : divisor = 0
+  · subst divisor
+    simp [edivConst, top, Mem, LowerBound.Holds, UpperBound.Holds]
+  by_cases hpositive : 0 < divisor
+  · rcases interval with ⟨lower, upper⟩
+    cases lower with
+    | negInf =>
+        cases upper with
+        | finite upper =>
+            simp [edivConst, hzero, hpositive, Mem, LowerBound.Holds,
+              UpperBound.Holds] at h ⊢
+            exact Int.ediv_le_ediv hpositive h
+        | posInf =>
+            simp [edivConst, hzero, hpositive, Mem, LowerBound.Holds, UpperBound.Holds]
+    | finite lower =>
+        cases upper with
+        | finite upper =>
+            simp [edivConst, hzero, hpositive, Mem, LowerBound.Holds,
+              UpperBound.Holds] at h ⊢
+            exact ⟨Int.ediv_le_ediv hpositive h.1, Int.ediv_le_ediv hpositive h.2⟩
+        | posInf =>
+            simp [edivConst, hzero, hpositive, Mem, LowerBound.Holds,
+              UpperBound.Holds] at h ⊢
+            exact Int.ediv_le_ediv hpositive h
+  · have hnegative : divisor < 0 := by omega
+    rcases interval with ⟨lower, upper⟩
+    cases lower with
+    | negInf =>
+        cases upper with
+        | finite upper =>
+            simp [edivConst, hzero, hpositive, Mem, LowerBound.Holds,
+              UpperBound.Holds] at h ⊢
+            exact ediv_reverses_of_neg hnegative h
+        | posInf =>
+            simp [edivConst, hzero, hpositive, Mem, LowerBound.Holds, UpperBound.Holds]
+    | finite lower =>
+        cases upper with
+        | finite upper =>
+            simp [edivConst, hzero, hpositive, Mem, LowerBound.Holds,
+              UpperBound.Holds] at h ⊢
+            exact ⟨ediv_reverses_of_neg hnegative h.2,
+              ediv_reverses_of_neg hnegative h.1⟩
+        | posInf =>
+            simp [edivConst, hzero, hpositive, Mem, LowerBound.Holds,
+              UpperBound.Holds] at h ⊢
+            exact ediv_reverses_of_neg hnegative h
+
+/-- The least of four endpoint quotients for two finite intervals. -/
+def quotientLower (leftLower leftUpper rightLower rightUpper : Int) : Int :=
+  intMin (intMin (leftLower / rightLower) (leftLower / rightUpper))
+    (intMin (leftUpper / rightLower) (leftUpper / rightUpper))
+
+/-- The greatest of four endpoint quotients for two finite intervals. -/
+def quotientUpper (leftLower leftUpper rightLower rightUpper : Int) : Int :=
+  intMax (intMax (leftLower / rightLower) (leftLower / rightUpper))
+    (intMax (leftUpper / rightLower) (leftUpper / rightUpper))
+
+/-- The four-corner integer-quotient hull for finite intervals. -/
+def quotientHull (leftLower leftUpper rightLower rightUpper : Int) : Interval :=
+  closed (quotientLower leftLower leftUpper rightLower rightUpper)
+    (quotientUpper leftLower leftUpper rightLower rightUpper)
+
+private theorem quotientLower_le_leftLower_rightLower (a b c d : Int) :
+    quotientLower a b c d ≤ a / c := by
+  grind [quotientLower, intMin]
+
+private theorem quotientLower_le_leftLower_rightUpper (a b c d : Int) :
+    quotientLower a b c d ≤ a / d := by
+  grind [quotientLower, intMin]
+
+private theorem quotientLower_le_leftUpper_rightLower (a b c d : Int) :
+    quotientLower a b c d ≤ b / c := by
+  grind [quotientLower, intMin]
+
+private theorem quotientLower_le_leftUpper_rightUpper (a b c d : Int) :
+    quotientLower a b c d ≤ b / d := by
+  grind [quotientLower, intMin]
+
+private theorem leftLower_rightLower_le_quotientUpper (a b c d : Int) :
+    a / c ≤ quotientUpper a b c d := by
+  grind [quotientUpper, intMax]
+
+private theorem leftLower_rightUpper_le_quotientUpper (a b c d : Int) :
+    a / d ≤ quotientUpper a b c d := by
+  grind [quotientUpper, intMax]
+
+private theorem leftUpper_rightLower_le_quotientUpper (a b c d : Int) :
+    b / c ≤ quotientUpper a b c d := by
+  grind [quotientUpper, intMax]
+
+private theorem leftUpper_rightUpper_le_quotientUpper (a b c d : Int) :
+    b / d ≤ quotientUpper a b c d := by
+  grind [quotientUpper, intMax]
+
+private theorem ediv_antitone_right_of_nonneg {value lower upper : Int}
+    (hvalue : 0 ≤ value) (hlower : 0 < lower) (hbounds : lower ≤ upper) :
+    value / upper ≤ value / lower := by
+  have hupper : 0 < upper := Int.lt_of_lt_of_le hlower hbounds
+  apply (Int.ediv_le_iff_le_mul hupper).2
+  have hbase : value < (value / lower) * lower + lower :=
+    (Int.ediv_le_iff_le_mul hlower).1 (Int.le_refl _)
+  have hquotient : 0 ≤ value / lower :=
+    Int.ediv_nonneg hvalue (Int.le_of_lt hlower)
+  have hmul : (value / lower) * lower ≤ (value / lower) * upper :=
+    Int.mul_le_mul_of_nonneg_left hbounds hquotient
+  omega
+
+private theorem ediv_monotone_right_of_nonpos {value lower upper : Int}
+    (hvalue : value ≤ 0) (hlower : 0 < lower) (hbounds : lower ≤ upper) :
+    value / lower ≤ value / upper := by
+  have hupper : 0 < upper := Int.lt_of_lt_of_le hlower hbounds
+  apply (Int.le_ediv_iff_mul_le hupper).2
+  have hquotient : value / lower ≤ 0 :=
+    Int.ediv_nonpos_of_nonpos_of_neg hvalue hlower
+  have hmul : (value / lower) * upper ≤ (value / lower) * lower :=
+    Int.mul_le_mul_of_nonpos_left hquotient hbounds
+  exact Int.le_trans hmul (Int.ediv_mul_le value (Int.ne_of_gt hlower))
+
+/-- A four-corner quotient hull is sound when every divisor is positive. -/
+theorem mem_quotientHull_of_pos {a b c d x y : Int}
+    (hx : (closed a b).Mem x) (hy : (closed c d).Mem y) (hc : 0 < c) :
+    (quotientHull a b c d).Mem (x / y) := by
+  change a ≤ x ∧ x ≤ b at hx
+  change c ≤ y ∧ y ≤ d at hy
+  change quotientLower a b c d ≤ x / y ∧ x / y ≤ quotientUpper a b c d
+  have hypositive : 0 < y := Int.lt_of_lt_of_le hc hy.1
+  constructor
+  · by_cases ha : 0 ≤ a
+    · exact Int.le_trans (quotientLower_le_leftLower_rightUpper a b c d) <|
+        Int.le_trans (ediv_antitone_right_of_nonneg ha hypositive hy.2) <|
+          Int.ediv_le_ediv hypositive hx.1
+    · have haNonpositive : a ≤ 0 := by omega
+      exact Int.le_trans (quotientLower_le_leftLower_rightLower a b c d) <|
+        Int.le_trans (ediv_monotone_right_of_nonpos haNonpositive hc hy.1) <|
+          Int.ediv_le_ediv hypositive hx.1
+  · by_cases hb : 0 ≤ b
+    · exact Int.le_trans (Int.ediv_le_ediv hypositive hx.2) <|
+        Int.le_trans (ediv_antitone_right_of_nonneg hb hc hy.1) <|
+          leftUpper_rightLower_le_quotientUpper a b c d
+    · have hbNonpositive : b ≤ 0 := by omega
+      exact Int.le_trans (Int.ediv_le_ediv hypositive hx.2) <|
+        Int.le_trans (ediv_monotone_right_of_nonpos hbNonpositive hypositive hy.2) <|
+          leftUpper_rightUpper_le_quotientUpper a b c d
+
+/-- The lower endpoint for a finite dividend divided by a positive divisor ray. -/
+def rayQuotientLower (leftLower leftUpper rightLower : Int) : Int :=
+  intMin (intMin (leftLower / rightLower) (leftUpper / rightLower)) 0
+
+/-- The upper endpoint for a finite dividend divided by a positive divisor ray. -/
+def rayQuotientUpper (leftLower leftUpper rightLower : Int) : Int :=
+  intMax (intMax (leftLower / rightLower) (leftUpper / rightLower)) 0
+
+/-- A zero-inclusive hull for a finite dividend and positive divisor ray. -/
+def quotientRayHull (leftLower leftUpper rightLower : Int) : Interval :=
+  closed (rayQuotientLower leftLower leftUpper rightLower)
+    (rayQuotientUpper leftLower leftUpper rightLower)
+
+private theorem rayQuotientLower_le_leftLower (a b c : Int) :
+    rayQuotientLower a b c ≤ a / c := by
+  grind [rayQuotientLower, intMin]
+
+private theorem rayQuotientLower_le_zero (a b c : Int) :
+    rayQuotientLower a b c ≤ 0 := by
+  grind [rayQuotientLower, intMin]
+
+private theorem leftUpper_le_rayQuotientUpper (a b c : Int) :
+    b / c ≤ rayQuotientUpper a b c := by
+  grind [rayQuotientUpper, intMax]
+
+private theorem zero_le_rayQuotientUpper (a b c : Int) :
+    0 ≤ rayQuotientUpper a b c := by
+  grind [rayQuotientUpper, intMax]
+
+/-- A zero-inclusive quotient hull is sound when every divisor lies on a positive ray. -/
+theorem mem_quotientRayHull_of_pos {a b c x y : Int}
+    (hx : (closed a b).Mem x) (hy : (atLeast c).Mem y) (hc : 0 < c) :
+    (quotientRayHull a b c).Mem (x / y) := by
+  change a ≤ x ∧ x ≤ b at hx
+  simp [atLeast, Mem, LowerBound.Holds, UpperBound.Holds] at hy
+  change rayQuotientLower a b c ≤ x / y ∧ x / y ≤ rayQuotientUpper a b c
+  have hypositive : 0 < y := Int.lt_of_lt_of_le hc hy
+  constructor
+  · by_cases hxNonnegative : 0 ≤ x
+    · exact Int.le_trans (rayQuotientLower_le_zero a b c) <|
+        Int.ediv_nonneg hxNonnegative (Int.le_of_lt hypositive)
+    · have hxNonpositive : x ≤ 0 := by omega
+      exact Int.le_trans (rayQuotientLower_le_leftLower a b c) <|
+        Int.le_trans (Int.ediv_le_ediv hc hx.1) <|
+          ediv_monotone_right_of_nonpos hxNonpositive hc hy
+  · by_cases hxNonnegative : 0 ≤ x
+    · have hbNonnegative : 0 ≤ b := Int.le_trans hxNonnegative hx.2
+      exact Int.le_trans (Int.ediv_le_ediv hypositive hx.2) <|
+        Int.le_trans (ediv_antitone_right_of_nonneg hbNonnegative hc hy) <|
+          leftUpper_le_rayQuotientUpper a b c
+    · have hxNonpositive : x ≤ 0 := by omega
+      exact Int.le_trans (Int.ediv_nonpos_of_nonpos_of_neg hxNonpositive hypositive) <|
+        zero_le_rayQuotientUpper a b c
+
+/-- Sound interval division with exact, sign-stable finite, and sign-stable ray cases. -/
+def ediv (left right : Interval) : Interval :=
+  match right.lower, right.upper with
+  | .finite rightLower, .finite rightUpper =>
+      if rightLower = rightUpper ∧ rightLower ≠ 0 then
+        edivConst rightLower left
+      else
+        match left.lower, left.upper with
+        | .finite leftLower, .finite leftUpper =>
+            if 0 < rightLower then
+              quotientHull leftLower leftUpper rightLower rightUpper
+            else if rightUpper < 0 then
+              (quotientHull leftLower leftUpper (-rightUpper) (-rightLower)).neg
+            else
+              top
+        | _, _ => top
+  | .finite rightLower, .posInf =>
+      match left.lower, left.upper with
+      | .finite leftLower, .finite leftUpper =>
+          if 0 < rightLower then quotientRayHull leftLower leftUpper rightLower else top
+      | _, _ => top
+  | .negInf, .finite rightUpper =>
+      match left.lower, left.upper with
+      | .finite leftLower, .finite leftUpper =>
+          if rightUpper < 0 then
+            (quotientRayHull leftLower leftUpper (-rightUpper)).neg
+          else
+            top
+      | _, _ => top
+  | .negInf, .posInf => top
+
+theorem mem_ediv {left right : Interval} {x y : Int}
+    (hx : left.Mem x) (hy : right.Mem y) : (left.ediv right).Mem (x / y) := by
+  rcases right with ⟨rightLower, rightUpper⟩
+  cases rightLower with
+  | negInf =>
+      cases rightUpper with
+      | posInf =>
+          simp [ediv, top, Mem, LowerBound.Holds, UpperBound.Holds]
+      | finite rightUpper =>
+          rcases left with ⟨leftLower, leftUpper⟩
+          cases leftLower with
+          | negInf =>
+              simp [ediv, top, Mem, LowerBound.Holds, UpperBound.Holds]
+          | finite leftLower =>
+              cases leftUpper with
+              | posInf =>
+                  simp [ediv, top, Mem, LowerBound.Holds, UpperBound.Holds]
+              | finite leftUpper =>
+                  change (if rightUpper < 0 then
+                    (quotientRayHull leftLower leftUpper (-rightUpper)).neg else top).Mem
+                      (x / y)
+                  by_cases hnegative : rightUpper < 0
+                  · rw [if_pos hnegative]
+                    have hyBounds : (-rightUpper ≤ -y) := by
+                      simp [Mem, LowerBound.Holds, UpperBound.Holds] at hy
+                      omega
+                    have hpositive : 0 < -rightUpper := by omega
+                    have hquotient := mem_quotientRayHull_of_pos hx
+                      (show (atLeast (-rightUpper)).Mem (-y) by
+                        simp [atLeast, Mem, LowerBound.Holds, UpperBound.Holds, hyBounds])
+                      hpositive
+                    have hnegated := mem_neg hquotient
+                    rw [neg_ediv_neg] at hnegated
+                    exact hnegated
+                  · rw [if_neg hnegative]
+                    exact mem_top (x / y)
+  | finite rightLower =>
+      cases rightUpper with
+      | posInf =>
+          rcases left with ⟨leftLower, leftUpper⟩
+          cases leftLower with
+          | negInf =>
+              simp [ediv, top, Mem, LowerBound.Holds, UpperBound.Holds]
+          | finite leftLower =>
+              cases leftUpper with
+              | posInf =>
+                  simp [ediv, top, Mem, LowerBound.Holds, UpperBound.Holds]
+              | finite leftUpper =>
+                  change (if 0 < rightLower then
+                    quotientRayHull leftLower leftUpper rightLower else top).Mem (x / y)
+                  by_cases hpositive : 0 < rightLower
+                  · rw [if_pos hpositive]
+                    exact mem_quotientRayHull_of_pos hx hy hpositive
+                  · rw [if_neg hpositive]
+                    exact mem_top (x / y)
+      | finite rightUpper =>
+          by_cases hexact : rightLower = rightUpper ∧ rightLower ≠ 0
+          · rcases hexact with ⟨hequal, hnonzero⟩
+            subst rightUpper
+            have hyExact : y = rightLower := by
+              simp [Mem, LowerBound.Holds, UpperBound.Holds] at hy
+              omega
+            subst y
+            simp only [ediv, true_and]
+            rw [if_pos hnonzero]
+            exact mem_edivConst (interval := left) (divisor := rightLower) hx
+          · rcases left with ⟨leftLower, leftUpper⟩
+            cases leftLower with
+            | negInf =>
+                simp [ediv, hexact, top, Mem, LowerBound.Holds, UpperBound.Holds]
+            | finite leftLower =>
+                cases leftUpper with
+                | posInf =>
+                    simp [ediv, hexact, top, Mem, LowerBound.Holds, UpperBound.Holds]
+                | finite leftUpper =>
+                    change (if rightLower = rightUpper ∧ rightLower ≠ 0 then
+                      edivConst rightLower (closed leftLower leftUpper)
+                    else if 0 < rightLower then
+                      quotientHull leftLower leftUpper rightLower rightUpper
+                    else if rightUpper < 0 then
+                      (quotientHull leftLower leftUpper (-rightUpper) (-rightLower)).neg
+                    else top).Mem (x / y)
+                    rw [if_neg hexact]
+                    by_cases hpositive : 0 < rightLower
+                    · rw [if_pos hpositive]
+                      exact mem_quotientHull_of_pos hx hy hpositive
+                    · rw [if_neg hpositive]
+                      by_cases hnegative : rightUpper < 0
+                      · rw [if_pos hnegative]
+                        have hyNegativeBounds :
+                            (closed (-rightUpper) (-rightLower)).Mem (-y) := by
+                          simp [Mem, closed, LowerBound.Holds, UpperBound.Holds] at hy ⊢
+                          omega
+                        have hpositiveNegated : 0 < -rightUpper := by omega
+                        have hquotient :=
+                          mem_quotientHull_of_pos hx hyNegativeBounds hpositiveNegated
+                        have hnegated := mem_neg hquotient
+                        rw [neg_ediv_neg] at hnegated
+                        exact hnegated
+                      · rw [if_neg hnegative]
+                        exact mem_top (x / y)
+
 /-- Intersect an interval with a finite lower bound. -/
 def restrictLower (interval : Interval) (lower : Int) : Interval :=
   ⟨interval.lower.max (.finite lower), interval.upper⟩
@@ -758,6 +1128,40 @@ theorem mem_mul {left right : AbstractNumber} {x y : Int}
             have hproduct : x * y ≠ 0 := Int.mul_ne_zero hxNonzero hyNonzero
             simpa [mulExclusion, hpoints, eq_comm] using hproduct
           · simp [mulExclusion, hpoints]
+
+private def edivExclusion (left right : AbstractNumber) : Option Int :=
+  match right.exactValue? with
+  | some divisor =>
+      if divisor = 1 then left.excluded
+      else if divisor = -1 then left.excluded.map (fun value => -value)
+      else none
+  | none => none
+
+/-- Abstract integer division, precise for supported sign-stable divisor ranges. -/
+def ediv (left right : AbstractNumber) : AbstractNumber :=
+  (⟨left.interval.ediv right.interval, edivExclusion left right⟩ : AbstractNumber).normalize
+
+theorem mem_ediv {left right : AbstractNumber} {x y : Int}
+    (hx : left.Mem x) (hy : right.Mem y) : (ediv left right).Mem (x / y) := by
+  apply mem_normalize_iff.mpr
+  refine ⟨Interval.mem_ediv hx.1 hy.1, ?_⟩
+  change edivExclusion left right ≠ some (x / y)
+  cases hright : right.exactValue? with
+  | none => simp [edivExclusion, hright]
+  | some divisor =>
+      have hyExact : y = divisor := eq_of_exactValue?_eq_some hright hy
+      subst y
+      by_cases hone : divisor = 1
+      · subst divisor
+        simpa [edivExclusion, hright] using hx.2
+      · by_cases hnegOne : divisor = -1
+        · subst divisor
+          cases hexcluded : left.excluded with
+          | none => simp [edivExclusion, hright, hexcluded]
+          | some excluded =>
+              have hne : excluded ≠ x := by simpa [hexcluded] using hx.2
+              simpa [edivExclusion, hright, hexcluded, Int.neg_inj] using hne
+        · simp [edivExclusion, hright, hone, hnegOne]
 
 /-- Abstract integer minimum. -/
 def minimum (left right : AbstractNumber) : AbstractNumber :=

@@ -67,6 +67,57 @@ namespace FreeRangeTest.Range
 #guard AbstractNumber.mul (AbstractNumber.exact (-3)) (AbstractNumber.closed 1 4) ==
   AbstractNumber.closed (-12) (-3)
 
+#guard AbstractNumber.ediv (AbstractNumber.closed 10 20) (AbstractNumber.closed 2 5) ==
+  AbstractNumber.closed 2 10
+
+#guard AbstractNumber.ediv (AbstractNumber.closed (-20) (-10))
+    (AbstractNumber.closed 2 5) == AbstractNumber.closed (-10) (-2)
+
+#guard AbstractNumber.ediv (AbstractNumber.closed 10 20)
+    (AbstractNumber.closed (-5) (-2)) == AbstractNumber.closed (-10) (-2)
+
+#guard AbstractNumber.ediv (AbstractNumber.closed (-20) (-10))
+    (AbstractNumber.closed (-5) (-2)) == AbstractNumber.closed 2 10
+
+#guard AbstractNumber.ediv (AbstractNumber.closed (-10) 20)
+    (AbstractNumber.closed 2 5) == AbstractNumber.closed (-5) 10
+
+#guard AbstractNumber.ediv (AbstractNumber.closed 10 20) (AbstractNumber.atLeast 2) ==
+  AbstractNumber.closed 0 10
+
+#guard AbstractNumber.ediv (AbstractNumber.closed 10 20) (AbstractNumber.atMost (-2)) ==
+  AbstractNumber.closed (-10) 0
+
+#guard AbstractNumber.ediv (AbstractNumber.closed (-20) (-10))
+    (AbstractNumber.atLeast 2) == AbstractNumber.closed (-10) 0
+
+#guard AbstractNumber.ediv (AbstractNumber.atLeast 1) (AbstractNumber.exact 2) ==
+  AbstractNumber.atLeast 0
+
+#guard AbstractNumber.ediv (AbstractNumber.atLeast 1) (AbstractNumber.exact (-2)) ==
+  AbstractNumber.atMost 0
+
+#guard AbstractNumber.ediv (AbstractNumber.atMost (-1)) (AbstractNumber.exact 2) ==
+  AbstractNumber.atMost (-1)
+
+#guard AbstractNumber.ediv AbstractNumber.top (AbstractNumber.exact 2) ==
+  AbstractNumber.top
+
+#guard AbstractNumber.ediv (AbstractNumber.closed 1 10)
+    (AbstractNumber.closed (-2) 3) == AbstractNumber.top
+
+#guard AbstractNumber.ediv (AbstractNumber.closed 1 10)
+    ((AbstractNumber.closed (-2) 3).exclude 0) == AbstractNumber.top
+
+#guard AbstractNumber.ediv (AbstractNumber.top.exclude 4) (AbstractNumber.exact 1) ==
+  AbstractNumber.top.exclude 4
+
+#guard AbstractNumber.ediv (AbstractNumber.top.exclude 4) (AbstractNumber.exact (-1)) ==
+  AbstractNumber.top.exclude (-4)
+
+#guard AbstractNumber.ediv (AbstractNumber.top.exclude 4) (AbstractNumber.exact 2) ==
+  AbstractNumber.top
+
 example :
     (Interval.mul (Interval.closed (-2) 3) (Interval.closed (-4) 5)).Mem (3 * (-4)) :=
   Interval.mem_mul (by decide) (by decide)
@@ -87,5 +138,22 @@ example {left right : AbstractNumber} {x y : Int}
     (hx : left.Mem x) (hy : right.Mem y) :
     (left.mul right).Mem (x * y) :=
   AbstractNumber.mem_mul hx hy
+
+example :
+    (Interval.ediv (Interval.closed 10 20) (Interval.closed 2 5)).Mem (17 / 4) :=
+  Interval.mem_ediv (by decide) (by decide)
+
+example :
+    (Interval.ediv (Interval.closed 10 20) (Interval.atLeast 2)).Mem (17 / 100) :=
+  Interval.mem_ediv (by decide) (by decide)
+
+example :
+    (Interval.ediv (Interval.atLeast 1) (Interval.closed (-2) (-2))).Mem (3 / (-2)) :=
+  Interval.mem_ediv (by decide) (by decide)
+
+example {left right : AbstractNumber} {x y : Int}
+    (hx : left.Mem x) (hy : right.Mem y) :
+    (left.ediv right).Mem (x / y) :=
+  AbstractNumber.mem_ediv hx hy
 
 end FreeRangeTest.Range

@@ -64,6 +64,9 @@ structure Var (inputCount : Nat) where
 
 namespace Var
 
+/-- Construct a variable from its finite input index. -/
+def «at» (index : Fin inputCount) : Var inputCount := ⟨index⟩
+
 /-- Use a variable as an embedded expression. -/
 def expr (inputVar : Var inputCount) : Expr inputCount := .input inputVar.index
 
@@ -93,6 +96,42 @@ instance : HMul (Expr inputCount) (Expr inputCount) (Expr inputCount) where
 
 instance : HDiv (Expr inputCount) (Expr inputCount) (Expr inputCount) where
   hDiv := .div
+
+instance : HAdd (Var inputCount) (Var inputCount) (Expr inputCount) where
+  hAdd := fun left right => .add left.expr right.expr
+
+instance : HAdd (Var inputCount) (Expr inputCount) (Expr inputCount) where
+  hAdd := fun left right => .add left.expr right
+
+instance : HAdd (Expr inputCount) (Var inputCount) (Expr inputCount) where
+  hAdd := fun left right => .add left right.expr
+
+instance : HSub (Var inputCount) (Var inputCount) (Expr inputCount) where
+  hSub := fun left right => .sub left.expr right.expr
+
+instance : HSub (Var inputCount) (Expr inputCount) (Expr inputCount) where
+  hSub := fun left right => .sub left.expr right
+
+instance : HSub (Expr inputCount) (Var inputCount) (Expr inputCount) where
+  hSub := fun left right => .sub left right.expr
+
+instance : HMul (Var inputCount) (Var inputCount) (Expr inputCount) where
+  hMul := fun left right => .mul left.expr right.expr
+
+instance : HMul (Var inputCount) (Expr inputCount) (Expr inputCount) where
+  hMul := fun left right => .mul left.expr right
+
+instance : HMul (Expr inputCount) (Var inputCount) (Expr inputCount) where
+  hMul := fun left right => .mul left right.expr
+
+instance : HDiv (Var inputCount) (Var inputCount) (Expr inputCount) where
+  hDiv := fun left right => .div left.expr right.expr
+
+instance : HDiv (Var inputCount) (Expr inputCount) (Expr inputCount) where
+  hDiv := fun left right => .div left.expr right
+
+instance : HDiv (Expr inputCount) (Var inputCount) (Expr inputCount) where
+  hDiv := fun left right => .div left right.expr
 
 /-- Build a guard that tests equality with a constant. -/
 infix:50 " =ᵍ " => fun inputVar constant => Var.guard inputVar Comparison.eq constant
@@ -131,6 +170,32 @@ abbrev Env (inputCount : Nat) := Fin inputCount → Int
 
 /-- An abstract range for every expression input. -/
 abbrev Context (inputCount : Nat) := Fin inputCount → AbstractNumber
+
+namespace Env
+
+/-- Assign the same concrete integer to every input. -/
+def uniform (value : Int) : Env inputCount := fun _ => value
+
+/-- A one-input concrete environment. -/
+def singleton (value : Int) : Env 1 := fun _ => value
+
+/-- Build a concrete environment from an exactly sized vector. -/
+def ofVector (values : Vector Int inputCount) : Env inputCount := values.get
+
+end Env
+
+namespace Context
+
+/-- Assign the same abstract number to every input. -/
+def uniform (number : AbstractNumber) : Context inputCount := fun _ => number
+
+/-- A one-input abstract context. -/
+def singleton (number : AbstractNumber) : Context 1 := fun _ => number
+
+/-- Build an abstract context from an exactly sized vector. -/
+def ofVector (numbers : Vector AbstractNumber inputCount) : Context inputCount := numbers.get
+
+end Context
 
 namespace Guard
 

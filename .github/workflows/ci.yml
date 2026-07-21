@@ -37,13 +37,4 @@ jobs:
           fi
 
       - name: Audit public theorem axioms
-        run: |
-          actual_axioms="$(printf 'import FreeRange\n#print axioms FreeRange.analyze_sound\n#print axioms FreeRange.safe_of_no_requirements\n' | lake env lean --stdin)"
-          expected_axioms="$(printf "%s\n%s" \
-            "'FreeRange.analyze_sound' depends on axioms: [propext, Classical.choice, Quot.sound]" \
-            "'FreeRange.safe_of_no_requirements' depends on axioms: [propext, Classical.choice, Quot.sound]")"
-          printf '%s\n' "$actual_axioms"
-          if [[ "$actual_axioms" != "$expected_axioms" ]]; then
-            echo 'The public theorem axiom set changed.'
-            exit 1
-          fi
+        run: lake build +Test.Axioms --wfail

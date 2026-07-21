@@ -166,9 +166,11 @@ theorem safe_of_no_requirements
 ```
 
 The repository contains no `sorry`, `admit`, custom `axiom`, or `unsafe`
-declaration. On Lean 4.32.0, `#print axioms` reports only Lean's standard
-`propext`, `Classical.choice`, and `Quot.sound` for both public theorems. CI also
-runs an independent `.olean` declaration audit.
+declaration. The tactic discharges its closed computation with kernel reduction,
+without `native_decide`'s generated axiom. On Lean 4.32.0, `#print axioms`
+reports only Lean's standard `propext`, `Classical.choice`, and `Quot.sound` for
+both public theorems and a representative theorem produced by `freerange`. CI
+also runs an independent `.olean` declaration audit.
 
 ## Precision boundary
 
@@ -220,7 +222,7 @@ nonzero status if any report changes unexpectedly.
 For the explicit theorem audit:
 
 ```text
-printf 'import FreeRange\n#print axioms FreeRange.analyze_sound\n#print axioms FreeRange.safe_of_no_requirements\n' | lake env lean --stdin
+lake build +Test.Axioms --wfail
 ```
 
 ## Repository map

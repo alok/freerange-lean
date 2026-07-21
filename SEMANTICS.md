@@ -176,9 +176,9 @@ safe.
 
 `safe_of_no_requirements` specializes the theorem: if computation shows the
 returned requirement list is empty, every covered environment evaluates
-successfully. The `freerange` tactic applies that corollary and uses
-`native_decide` only to discharge the closed, decidable equality saying that the
-computed list is empty. It does not sample inputs.
+successfully. The `freerange` tactic applies that corollary and uses Lean's kernel
+decision procedure to discharge the closed equality saying that the computed list
+is empty. It does not sample inputs or introduce `native_decide`'s generated axiom.
 
 ## Proof and execution trust
 
@@ -191,15 +191,15 @@ declaration. With the pinned Lean 4.32.0 toolchain, the audit is:
 ```
 
 These are Lean's standard logical/quotient axioms, not project-specific assumptions.
-CI builds and tests the package, runs the self-checking executable, rejects source
-placeholders, and asks `lean-action`'s independent declaration checker to inspect
-the produced `.olean` files.
+The compile-time audit also checks that a representative theorem produced by the
+`freerange` tactic has exactly the same set. CI builds and tests the package, runs
+the self-checking executable, rejects source placeholders, and asks `lean-action`'s
+independent declaration checker to inspect the produced `.olean` files.
 
 As with ordinary Lean development, the final trust base includes Lean's kernel and
 the correctness of the concrete definitions being claimed as the intended model.
-Using the `freerange` tactic additionally uses Lean's native decision procedure to
-produce the closed computational premise. The core `analyze_sound` theorem is
-available directly when a user wants to supply requirements without that tactic.
+The core `analyze_sound` theorem is available directly when a user wants to supply
+requirements rather than use the requirement-free tactic.
 
 ## JavaScript and floating-point boundary
 

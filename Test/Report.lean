@@ -4,6 +4,9 @@ open FreeRange
 
 namespace FreeRangeTest.Report
 
+#guard ({ interval := Interval.closed 3 5, excluded := some 0 } : AbstractNumber).render ==
+  "[3, 5]"
+
 def x : Var 1 := ⟨0⟩
 
 def x2 : Var 2 := ⟨0⟩

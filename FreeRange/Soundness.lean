@@ -14,8 +14,9 @@ theorem mem_refineTrue {abstract : AbstractNumber} {comparison : Comparison}
       simp [refineTrue, exact, closed, Mem, Interval.closed, Interval.Mem,
         LowerBound.Holds, UpperBound.Holds]
   | ne =>
-      refine ⟨hmem.1, ?_⟩
-      simpa [refineTrue, exclude, Comparison.Holds, eq_comm] using hguard
+      change (abstract.exclude constant).Mem value
+      apply mem_exclude_iff.mpr
+      exact ⟨hmem.1, by simpa [Comparison.Holds] using hguard⟩
   | lt =>
       apply mem_restrictUpper hmem
       simp [Comparison.Holds] at hguard
@@ -33,8 +34,9 @@ theorem mem_refineFalse {abstract : AbstractNumber} {comparison : Comparison}
     (abstract.refineFalse comparison constant).Mem value := by
   cases comparison with
   | eq =>
-      refine ⟨hmem.1, ?_⟩
-      simpa [refineFalse, exclude, Comparison.Holds, eq_comm] using hguard
+      change (abstract.exclude constant).Mem value
+      apply mem_exclude_iff.mpr
+      exact ⟨hmem.1, by simpa [Comparison.Holds] using hguard⟩
   | ne =>
       have hequal : value = constant := by
         simp [Comparison.Holds] at hguard

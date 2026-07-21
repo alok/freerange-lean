@@ -321,6 +321,76 @@ def Mem (abstract : AbstractNumber) (value : Int) : Prop :=
 instance (abstract : AbstractNumber) (value : Int) : Decidable (abstract.Mem value) :=
   inferInstanceAs (Decidable (abstract.interval.Mem value ∧ abstract.excluded ≠ some value))
 
+/-- A canonical abstract number has no exclusion outside its interval. -/
+def IsNormalized (abstract : AbstractNumber) : Prop :=
+  ∀ value, abstract.excluded = some value → abstract.interval.Mem value
+
+/-- Drop a redundant exclusion without changing the represented set of integers. -/
+def normalize (abstract : AbstractNumber) : AbstractNumber :=
+  match abstract.excluded with
+  | none => abstract
+  | some value =>
+      if abstract.interval.Mem value then abstract
+      else { abstract with excluded := none }
+
+/-- Normalization never changes the interval component. -/
+@[simp] theorem normalize_interval (abstract : AbstractNumber) :
+    abstract.normalize.interval = abstract.interval := by
+  cases hexcluded : abstract.excluded with
+  | none => simp [normalize, hexcluded]
+  | some excluded =>
+      by_cases hin : abstract.interval.Mem excluded <;>
+        simp [normalize, hexcluded, hin]
+
+/-- Normalization preserves concrete membership exactly. -/
+@[simp] theorem mem_normalize_iff {abstract : AbstractNumber} {value : Int} :
+    abstract.normalize.Mem value ↔ abstract.Mem value := by
+  cases hexcluded : abstract.excluded with
+  | none => simp [normalize, hexcluded]
+  | some excluded =>
+      by_cases hin : abstract.interval.Mem excluded
+      · simp [normalize, hexcluded, hin]
+      · have hnormalize :
+            abstract.normalize = { abstract with excluded := none } := by
+          simp [normalize, hexcluded, hin]
+        rw [hnormalize]
+        constructor
+        · intro hmem
+          refine ⟨hmem.1, ?_⟩
+          rw [hexcluded]
+          intro hequal
+          have : excluded = value := Option.some.inj hequal
+          subst value
+          exact hin hmem.1
+        · intro hmem
+          exact ⟨hmem.1, by simp⟩
+
+/-- Every normalized result has a useful exclusion, when it has one at all. -/
+theorem normalize_isNormalized (abstract : AbstractNumber) : abstract.normalize.IsNormalized := by
+  cases hexcluded : abstract.excluded with
+  | none =>
+      have hnormalize : abstract.normalize = abstract := by
+        simp [normalize, hexcluded]
+      rw [hnormalize]
+      intro value hvalue
+      rw [hexcluded] at hvalue
+      simp at hvalue
+  | some excluded =>
+      by_cases hin : abstract.interval.Mem excluded
+      · have hnormalize : abstract.normalize = abstract := by
+          simp [normalize, hexcluded, hin]
+        rw [hnormalize]
+        intro value hvalue
+        rw [hexcluded] at hvalue
+        have : excluded = value := Option.some.inj hvalue
+        simpa [this] using hin
+      · have hnormalize :
+            abstract.normalize = { abstract with excluded := none } := by
+          simp [normalize, hexcluded, hin]
+        rw [hnormalize]
+        intro value hvalue
+        simp at hvalue
+
 /-- The abstract number containing every integer. -/
 def top : AbstractNumber := ⟨.top, none⟩
 
@@ -338,7 +408,15 @@ def exact (value : Int) : AbstractNumber := closed value value
 
 /-- Remove one point, replacing any earlier exclusion. -/
 def exclude (abstract : AbstractNumber) (value : Int) : AbstractNumber :=
-  { abstract with excluded := some value }
+  ({ abstract with excluded := some value }).normalize
+
+/-- Exclusion removes exactly the requested point when it lies in the interval. -/
+@[simp] theorem mem_exclude_iff {abstract : AbstractNumber} {excluded value : Int} :
+    (abstract.exclude excluded).Mem value ↔
+      abstract.interval.Mem value ∧ value ≠ excluded := by
+  change ({ abstract with excluded := some excluded } : AbstractNumber).normalize.Mem value ↔ _
+  rw [mem_normalize_iff]
+  simp [Mem, eq_comm]
 
 /-- Whether the representation proves that a point is absent. -/
 def pointExcluded (abstract : AbstractNumber) (value : Int) : Bool :=
@@ -367,10 +445,11 @@ def join (left right : AbstractNumber) : AbstractNumber :=
     if left.pointExcluded 0 = true ∧ right.pointExcluded 0 = true then some 0
     else if left.excluded = right.excluded then left.excluded
     else none
-  ⟨interval, excluded⟩
+  (⟨interval, excluded⟩ : AbstractNumber).normalize
 
 theorem mem_join_left {left right : AbstractNumber} {value : Int} (h : left.Mem value) :
     (join left right).Mem value := by
+  apply mem_normalize_iff.mpr
   refine ⟨Interval.mem_join_left h.1, ?_⟩
   by_cases hzero : left.pointExcluded 0 = true ∧ right.pointExcluded 0 = true
   · have hleft : left.pointExcluded 0 = true := hzero.1
@@ -381,10 +460,11 @@ theorem mem_join_left {left right : AbstractNumber} {value : Int} (h : left.Mem 
     simpa [join, hzero, eq_comm] using hvalue
   · by_cases hequal : left.excluded = right.excluded
     · simpa [join, hzero, hequal] using h.2
-    · simp [join, hzero, hequal]
+    · simp [hzero, hequal]
 
 theorem mem_join_right {left right : AbstractNumber} {value : Int} (h : right.Mem value) :
     (join left right).Mem value := by
+  apply mem_normalize_iff.mpr
   refine ⟨Interval.mem_join_right h.1, ?_⟩
   by_cases hzero : left.pointExcluded 0 = true ∧ right.pointExcluded 0 = true
   · have hright : right.pointExcluded 0 = true := hzero.2
@@ -395,17 +475,18 @@ theorem mem_join_right {left right : AbstractNumber} {value : Int} (h : right.Me
     simpa [join, hzero, eq_comm] using hvalue
   · by_cases hequal : left.excluded = right.excluded
     · simpa [join, hzero, hequal] using h.2
-    · simp [join, hzero, hequal]
+    · simp [hzero, hequal]
 
 /-- Abstract negation. -/
 def neg (abstract : AbstractNumber) : AbstractNumber :=
-  ⟨abstract.interval.neg, abstract.excluded.map (fun value => -value)⟩
+  (⟨abstract.interval.neg, abstract.excluded.map (fun value => -value)⟩ : AbstractNumber).normalize
 
 theorem mem_neg {abstract : AbstractNumber} {value : Int} (h : abstract.Mem value) :
     abstract.neg.Mem (-value) := by
+  apply mem_normalize_iff.mpr
   refine ⟨Interval.mem_neg h.1, ?_⟩
   cases hexcluded : abstract.excluded with
-  | none => simp [neg, hexcluded]
+  | none => simp
   | some excluded =>
       have hne : excluded ≠ value := by simpa [hexcluded] using h.2
       simpa [neg, hexcluded, Int.neg_inj] using hne
@@ -422,10 +503,11 @@ private def addExclusion (left right : AbstractNumber) : Option Int :=
 
 /-- Abstract addition, including exact forwarding of a relevant point exclusion. -/
 def add (left right : AbstractNumber) : AbstractNumber :=
-  ⟨left.interval.add right.interval, addExclusion left right⟩
+  (⟨left.interval.add right.interval, addExclusion left right⟩ : AbstractNumber).normalize
 
 theorem mem_add {left right : AbstractNumber} {x y : Int}
     (hx : left.Mem x) (hy : right.Mem y) : (add left right).Mem (x + y) := by
+  apply mem_normalize_iff.mpr
   refine ⟨Interval.mem_add hx.1 hy.1, ?_⟩
   change addExclusion left right ≠ some (x + y)
   cases hright : right.exactValue? with
@@ -464,14 +546,15 @@ theorem mem_sub {left right : AbstractNumber} {x y : Int}
 def scale (coefficient : Int) (abstract : AbstractNumber) : AbstractNumber :=
   let excluded :=
     if coefficient ≠ 0 ∧ abstract.pointExcluded 0 = true then some 0 else none
-  ⟨abstract.interval.scale coefficient, excluded⟩
+  (⟨abstract.interval.scale coefficient, excluded⟩ : AbstractNumber).normalize
 
 theorem mem_scale {abstract : AbstractNumber} {coefficient value : Int}
     (h : abstract.Mem value) : (scale coefficient abstract).Mem (coefficient * value) := by
+  apply mem_normalize_iff.mpr
   refine ⟨Interval.mem_scale h.1, ?_⟩
   by_cases hcoefficient : coefficient = 0
   · subst coefficient
-    simp [scale]
+    simp
   by_cases hpoint : abstract.pointExcluded 0 = true
   · have hvalue : value ≠ 0 := by
       intro hvalue
@@ -479,25 +562,27 @@ theorem mem_scale {abstract : AbstractNumber} {coefficient value : Int}
       exact not_mem_of_pointExcluded hpoint h
     have hproduct : coefficient * value ≠ 0 := Int.mul_ne_zero hcoefficient hvalue
     simpa [scale, hcoefficient, hpoint, eq_comm] using hproduct
-  · simp [scale, hcoefficient, hpoint]
+  · simp [hcoefficient, hpoint]
 
 /-- Intersect an abstract number with a finite lower bound. -/
 def restrictLower (abstract : AbstractNumber) (lower : Int) : AbstractNumber :=
-  { abstract with interval := abstract.interval.restrictLower lower }
+  ({ abstract with interval := abstract.interval.restrictLower lower }).normalize
 
 theorem mem_restrictLower {abstract : AbstractNumber} {lower value : Int}
     (hmem : abstract.Mem value) (hbound : lower ≤ value) :
-    (abstract.restrictLower lower).Mem value :=
-  ⟨Interval.mem_restrictLower hmem.1 hbound, hmem.2⟩
+    (abstract.restrictLower lower).Mem value := by
+  apply mem_normalize_iff.mpr
+  exact ⟨Interval.mem_restrictLower hmem.1 hbound, hmem.2⟩
 
 /-- Intersect an abstract number with a finite upper bound. -/
 def restrictUpper (abstract : AbstractNumber) (upper : Int) : AbstractNumber :=
-  { abstract with interval := abstract.interval.restrictUpper upper }
+  ({ abstract with interval := abstract.interval.restrictUpper upper }).normalize
 
 theorem mem_restrictUpper {abstract : AbstractNumber} {upper value : Int}
     (hmem : abstract.Mem value) (hbound : value ≤ upper) :
-    (abstract.restrictUpper upper).Mem value :=
-  ⟨Interval.mem_restrictUpper hmem.1 hbound, hmem.2⟩
+    (abstract.restrictUpper upper).Mem value := by
+  apply mem_normalize_iff.mpr
+  exact ⟨Interval.mem_restrictUpper hmem.1 hbound, hmem.2⟩
 
 /-- Abstract multiplication. It is precise when either operand is exact and otherwise returns top. -/
 def mul (left right : AbstractNumber) : AbstractNumber :=

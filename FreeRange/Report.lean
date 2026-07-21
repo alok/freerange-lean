@@ -30,8 +30,9 @@ end Interval
 
 namespace AbstractNumber
 
-/-- Render an abstract number, including its one excluded point when present. -/
+/-- Render an abstract number canonically, including its useful excluded point when present. -/
 def render (number : AbstractNumber) : String :=
+  let number := number.normalize
   match number.excluded with
   | none => number.interval.render
   | some excluded => s!"{number.interval.render} except {excluded}"

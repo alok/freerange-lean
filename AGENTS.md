@@ -1,8 +1,11 @@
 # Repository instructions
 
-This repository implements Linear issue `ALOK-796`: a proof-backed, pure Lean 4 range analyzer inspired by `chenglou/freerange`.
+This repository implements Linear issues `ALOK-796` and `ALOK-800`: the proof-backed,
+pure Lean 4 range analyzer and its release-grade polish pass.
 
-Read `SPEC.md` and `SEMANTICS.md` before changing behavior. The specification’s exact-integer boundary is part of the public contract. Do not describe a theorem here as a fact about JavaScript or IEEE-754 arithmetic.
+Read `SPEC.md`, `POLISH_SPEC.md`, and `SEMANTICS.md` before changing behavior. The
+specification’s exact-integer boundary is part of the public contract. Do not describe a
+theorem here as a fact about JavaScript or IEEE-754 arithmetic.
 
 Use the toolchain pinned in `lean-toolchain`. Verify changes with `lake build`, `lake test`, and `lake exe freerange` as applicable.
 

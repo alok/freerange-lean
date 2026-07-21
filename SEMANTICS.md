@@ -1,6 +1,6 @@
 # Semantics, soundness, and trust boundary
 
-This document fixes the meaning of a FreeRange Lean 0.1 result. It is normative
+This document fixes the meaning of a FreeRange Lean 0.2.0 result. It is normative
 for claims made by this repository.
 
 ## What is being analyzed
@@ -38,7 +38,7 @@ the corresponding abstract number.
   fail.
 - A conditional evaluates only the branch selected by its guard.
 
-Division by zero is the only concrete failure in version 0.1. The semantics has no
+Division by zero is the only concrete failure in version 0.2.0. The semantics has no
 overflow, underflow, rounding, `NaN`, or numeric infinity. The infinity symbols in
 a report are abstract unbounded endpoints, not concrete values.
 
@@ -81,10 +81,18 @@ its upper endpoint is empty. A singleton interval that excludes its singleton is
 also empty. Empty values are useful for branches that are unreachable under the
 input context.
 
-The representation is intentionally not normalized. For example, `[1, 4] except
-0` is semantically the same set as `[1, 4]`. This keeps useful nonzero evidence
-available to later operations without complicating the trusted membership
-definition.
+`AbstractNumber.normalize` drops a stored exclusion exactly when that point lies
+outside the interval. For example, `[1, 4] except 0` canonicalizes to `[1, 4]`,
+while `[-1, 1] except 0` retains its useful nonzero evidence.
+`mem_normalize_iff` proves that this transformation preserves concrete membership
+in both directions, and `normalize_isNormalized` proves that the resulting
+exclusion—if any—belongs to the interval.
+
+All public abstract transformers produce canonical results. Rendering normalizes
+its argument as a final presentation boundary, including when a caller manually
+constructs a noncanonical structure. Normalization does not introduce a separate
+empty representation: a singleton interval excluding its sole point remains the
+existing empty abstract value.
 
 ## Abstract transformers
 
@@ -117,8 +125,23 @@ interval by that constant. Positive and negative coefficients order the endpoint
 appropriately. A nonzero coefficient carries a proof that zero remains absent
 when the source proves zero absent.
 
-If neither operand is exact, version 0.1 returns the top abstract number. This is a
-precision limit; it is still a sound over-approximation.
+When neither operand is exact and both intervals have finite endpoints, multiplication
+uses the standard four-corner hull:
+
+```text
+[a, b] * [c, d]
+  = [min (a*c) (a*d) (b*c) (b*d),
+     max (a*c) (a*d) (b*c) (b*d)]
+```
+
+`Interval.mem_productHull` proves containment for every concrete pair in the input
+intervals. The proof covers all sign configurations, including intervals that cross
+zero.
+
+If either nonconstant interval is unbounded, multiplication returns the top interval.
+That deliberate precision fallback retains zero as excluded exactly when both operands
+prove zero absent. Soundness follows from the integer zero-product theorem; one nonzero
+operand alone cannot justify excluding zero.
 
 ### Minimum, maximum, and absolute value
 
@@ -133,7 +156,7 @@ The analyzer first analyzes both operands. If the abstract divisor already prove
 that zero is absent, it adds no new requirement. Otherwise it appends
 `nonzero divisor`.
 
-After establishing this safety condition, version 0.1 returns the top abstract
+After establishing this safety condition, version 0.2.0 returns the top abstract
 number for the quotient. It makes no quotient-bound claim.
 
 ## Requirements
@@ -156,7 +179,7 @@ their particular input does not take, and even from an abstractly unreachable
 branch. The contract can therefore be stronger than necessary, never weaker than
 the theorem needs.
 
-Requirements are not deduplicated or simplified in version 0.1.
+Requirements are not deduplicated or simplified in version 0.2.0.
 
 ## Whole-analyzer theorem
 
@@ -204,7 +227,7 @@ requirements rather than use the requirement-free tactic.
 ## JavaScript and floating-point boundary
 
 The original TypeScript FreeRange analyzes JavaScript-style numeric programs and
-tracks phenomena such as non-finite values and integrality. FreeRange Lean 0.1
+tracks phenomena such as non-finite values and integrality. FreeRange Lean 0.2.0
 does none of that.
 
 In particular, a FreeRange Lean proof about `Expr n` does not establish that a

@@ -2,23 +2,24 @@
 
 [![CI](https://github.com/alok/freerange-lean/actions/workflows/ci.yml/badge.svg)](https://github.com/alok/freerange-lean/actions/workflows/ci.yml)
 
-FreeRange Lean is a pure Lean 4, proof-backed range analyzer for a small embedded
-exact-integer language. Give it abstract ranges for the inputs and it computes:
+FreeRange Lean is a pure Lean 4 range analyzer with an end-to-end soundness theorem. Give
+it an embedded exact-integer expression and abstract ranges for its inputs; it computes:
 
-- a range containing every successful result; and
-- the nonzero conditions needed to make division safe.
+- an abstract number containing every successful result; and
+- the nonzero requirements needed to make division safe.
 
-The public `analyze_sound` theorem connects that computation to the language's
-concrete semantics. The `freerange` tactic turns a requirement-free analysis into
-a proof of safety; it is not a bounded test or counterexample search.
+The analyzer is executable. The guarantee is proved. `analyze_sound` connects every
+computed result to the concrete `Expr.eval` semantics, while the `freerange` tactic turns
+a requirement-free analysis into a theorem of total evaluation.
 
-This project is inspired by Cheng Lou's
-[FreeRange](https://github.com/chenglou/freerange), but it is a Lean library, not a
-TypeScript port or bridge. Version 0.1 reasons about unbounded `Int`, not JavaScript
-binary64 arithmetic. See [SEMANTICS.md](SEMANTICS.md) before applying a result to
-floating-point code.
+FreeRange Lean is inspired by Cheng Lou's
+[FreeRange](https://github.com/chenglou/freerange), but it is an independent Lean library,
+not a TypeScript bridge. Its theorems concern unbounded mathematical `Int` values—not
+JavaScript binary64, machine integers, or arbitrary Lean source.
 
-## A first proof
+## Quickstart: analyze and prove
+
+Add `FreeRange` to a Lean file and construct one input, one context, and one expression:
 
 ```lean
 import FreeRange
@@ -27,14 +28,14 @@ open FreeRange
 
 namespace Example
 
-def x : Var 1 := ⟨0⟩
+def x : Var 1 := .at 0
 
-def unconstrained : Context 1 := fun _ => .top
+def unconstrained : Context 1 := .uniform .top
 
 def guardedDivision : Expr 1 :=
-  ifE (x ≠ᵍ 0) (10 / x.expr) 0
+  ifE (x ≠ᵍ 0) (10 / x) 0
 
-#eval report unconstrained guardedDivision
+#eval IO.println (report unconstrained guardedDivision)
 -- range: [-∞, +∞]
 -- requires: none
 
@@ -44,74 +45,104 @@ example : Safe unconstrained guardedDivision := by
 end Example
 ```
 
-`Safe context expression` means that the expression evaluates successfully for
-every concrete environment covered by `context`. The proof above works because
-the true branch refines `x` to exclude zero before analyzing the divisor.
+`Safe context expression` means that evaluation succeeds for every concrete environment
+covered by `context`. The proof works because the true branch refines `x` to exclude zero
+before the divisor is analyzed. `freerange` applies the proved safety corollary and closes
+the computed empty-requirements equality by kernel reduction; it does not test sample inputs.
 
-The refinement also follows an exclusion through an exact shift:
+The same refinement survives an exact shift:
 
 ```lean
-def shifted : Expr 1 :=
-  ifE (x ≠ᵍ 4) (10 / (x.expr - 4)) 0
+def shiftedDivision : Expr 1 :=
+  ifE (x ≠ᵍ 4) (10 / (x - 4)) 0
 
-example : Safe unconstrained shifted := by
+example : Safe unconstrained shiftedDivision := by
   freerange
 ```
 
-Changing the guard to `x ≠ᵍ 5` correctly leaves the requirement
-`(x0 - 4) != 0` unresolved.
+Changing the guard to `x ≠ᵍ 5` correctly leaves `(x0 - 4) != 0` as a caller
+requirement.
 
-## Reports and concrete checks
+Every definition and claim in this quickstart has a compiled counterpart in
+[`Test/Quickstart.lean`](Test/Quickstart.lean). That module uses exact `#guard`
+expectations so documentation drift fails the test suite.
 
-Contexts map each `Fin n` input index to an `AbstractNumber`:
+## Bounded analysis
+
+Exactly sized vectors avoid raw `Fin` functions for ordinary contexts:
 
 ```lean
-def x2 : Var 2 := ⟨0⟩
-def y2 : Var 2 := ⟨1⟩
+def x2 : Var 2 := .at 0
+def y2 : Var 2 := .at 1
 
-def boundedPair : Context 2 := fun index =>
-  if index = x2.index then .closed 1 10 else .closed 2 3
+def boundedPair : Context 2 :=
+  .ofVector #v[.closed 1 10, .closed 2 3]
 
-#eval report boundedPair (x2.expr + y2.expr)
+#eval IO.println (report boundedPair (x2 + y2))
 -- range: [3, 13]
+-- requires: none
+
+#eval IO.println (report boundedPair (x2 * y2))
+-- range: [2, 30]
 -- requires: none
 ```
 
-An unguarded partial operation reports its caller contract:
+Finite bounded multiplication uses the standard four endpoint products. For
+`[a, b] * [c, d]`, the result is the interval from the minimum to the maximum of
+`a*c`, `a*d`, `b*c`, and `b*d`. `Interval.mem_productHull` proves that every
+concrete product belongs to that interval.
+
+## Named reports and concrete checks
+
+Default reports retain the stable names `x0`, `x1`, and so on. Presentation names can be
+supplied without changing the analyzed expression or theorem:
 
 ```lean
-def crossesZero : Context 1 := fun _ => .closed (-5) 5
+def crossesZero : Context 1 := .singleton (.closed (-5) 5)
 
-#eval report crossesZero (10 / x.expr)
+def divisorName : InputNames 1 := .singleton "divisor"
+
+#eval IO.println (reportWithNames crossesZero (10 / x) divisorName)
 -- range: [-∞, +∞]
--- requires: x0 != 0
-```
+-- requires: divisor != 0
 
-`checkAt` checks context membership first, then inferred requirements, then the
-concrete evaluation:
+#eval IO.println (
+  (checkAt crossesZero (10 / x) (.singleton 0)).renderWithNames divisorName)
+-- requirement failed: divisor != 0
 
-```lean
-#eval (checkAt crossesZero (10 / x.expr) (fun _ => 0)).render
--- requirement failed: x0 != 0
-
-#eval (checkAt crossesZero (10 / x.expr) (fun _ => 2)).render
+#eval IO.println (
+  (checkAt crossesZero (10 / x) (.singleton 2)).renderWithNames divisorName)
 -- value: 5
 ```
 
-This checker explains one supplied input. It is not the basis of the soundness
-proof and it does not search for counterexamples.
+`checkAt` checks context membership, then inferred requirements, then concrete evaluation
+for one supplied environment. It is an explanation tool, not a counterexample search and
+not the basis of the proof.
 
-## Embedded language
+## How the pieces fit
 
-For `n` inputs, `Expr n` includes:
+```mermaid
+flowchart LR
+  E["Expr n"] -->|"embedded program"| A["analyze"]
+  C["Context n"] -->|"input assumptions"| A
+  A -->|"number"| N["AbstractNumber"]
+  A -->|"requirements"| Q["List Requirement"]
+  N --> R["report / checkAt"]
+  Q --> R
+  N --> S["analyze_sound"]
+  Q --> S
+  S -->|"empty requirements"| T["freerange → Safe"]
+```
+
+The language in `Expr n` contains:
 
 - integer constants and inputs indexed by `Fin n`;
 - negation, addition, subtraction, multiplication, and partial integer division;
-- `minE`, `maxE`, and `absE`;
+- `minE`, `maxE`, and `absE`; and
 - `ifE` with one input-to-constant guard.
 
-`Var n` coerces to `Expr n`, and expressions support ordinary `-`, `+`, `-`, `*`,
-and `/` notation. Guards use visibly distinct notation:
+`Var n` coerces to `Expr n`. Mixed `Var`/`Expr` operands support ordinary `+`, `-`,
+`*`, and `/` notation. Guards deliberately use distinct symbols:
 
 ```lean
 x =ᵍ 3
@@ -122,7 +153,9 @@ x >ᵍ 3
 x ≥ᵍ 3
 ```
 
-The range constructors are:
+## Abstract numbers and canonical form
+
+The public constructors are:
 
 ```lean
 AbstractNumber.top
@@ -132,11 +165,16 @@ AbstractNumber.atMost upper
 AbstractNumber.exact value
 ```
 
-An abstract number is an inclusive interval, possibly unbounded on either side,
-with at most one integer point excluded. Empty bounded intervals are allowed and
-represent unreachable refinements.
+An abstract number is an inclusive, possibly unbounded interval with at most one excluded
+integer. Empty bounded intervals represent unreachable refinements.
 
-## Proof authority
+`AbstractNumber.normalize` removes an exclusion that lies outside its interval. The theorem
+`mem_normalize_iff` proves exact membership equivalence, and
+`normalize_isNormalized` proves the canonical-form invariant. Public transformers normalize
+their outputs, and rendering normalizes even a manually constructed noncanonical value, so
+reports never emit noise such as `[3, 5] except 0`.
+
+## The soundness contract
 
 The central theorem is:
 
@@ -153,11 +191,11 @@ theorem analyze_sound
       (analyze context expression).number.Mem value
 ```
 
-It proves two things together: evaluation succeeds under the inferred contract,
-and the result belongs to the reported abstract range. Every abstract transformer
-used by the analyzer has its corresponding membership theorem.
+It proves evaluation safety and result containment together. A report with requirements is
+a conditional theorem: callers must establish those requirements for the environment at
+hand.
 
-The corollary used by the tactic is:
+The tactic uses this corollary:
 
 ```lean
 theorem safe_of_no_requirements
@@ -165,92 +203,119 @@ theorem safe_of_no_requirements
     Safe context expression
 ```
 
-The repository contains no `sorry`, `admit`, custom `axiom`, or `unsafe`
-declaration. The tactic discharges its closed computation with kernel reduction,
-without `native_decide`'s generated axiom. On Lean 4.32.0, `#print axioms`
-reports only Lean's standard `propext`, `Classical.choice`, and `Quot.sound` for
-both public theorems and a representative theorem produced by `freerange`. CI
-also runs Lean 4.32's bundled standalone `leanchecker` over the built environment.
+Every transformer used by `analyze` has a local membership theorem, including joins,
+guard refinements, canonicalization, and the finite multiplication hull.
 
-## Precision boundary
+## Precision, honestly
 
-Sound does not mean maximally precise. Version 0.1 deliberately chooses a small,
-auditable domain:
+Soundness does not imply maximal precision. Version 0.2.0 deliberately uses a small,
+auditable nonrelational domain:
 
-- addition, subtraction, negation, bounds, `min`, `max`, and absolute value use
-  interval transformers;
-- multiplication is interval-precise when either operand is an exact constant;
-- multiplying two nonconstant abstract values returns `[-∞, +∞]`;
-- division checks or infers nonzeroness, then returns `[-∞, +∞]`;
-- branches are range-refined, while their inferred requirements are combined
-  path-insensitively;
-- only one excluded point is retained.
+| Operation | Abstract behavior |
+| --- | --- |
+| Constants and inputs | Exact constant or caller-supplied abstract number |
+| Negation, addition, subtraction | Interval image, retaining the zero-exclusion facts needed by guarded division |
+| Multiplication | Exact scaling for a singleton; four-corner hull for two finite intervals; top interval for an unbounded nonconstant pair |
+| `minE`, `maxE`, `absE` | Proved interval images; excluded-point detail may be forgotten |
+| Division | Prove or infer a nonzero divisor requirement, then return the top interval |
+| `ifE` | Refine each branch, join result ranges, and combine requirements path-insensitively |
 
-Those choices may produce a wide range or a stronger-than-necessary caller
-contract, but `analyze_sound` still applies. The package does not silently turn a
-precision failure into a false claim.
+Multiplication excludes zero when both operands prove zero absent, including on the
+unbounded fallback. A single nonzero factor is insufficient because the other factor may be
+zero.
+
+The domain stores only one excluded point. Requirements are not deduplicated or simplified,
+and both branches contribute requirements even when one is unreachable for a particular
+concrete input. These choices can widen a result or strengthen a caller contract; they never
+authorize a false range claim.
 
 ## Install
 
-Add the Git dependency to a Lake package:
+For a released dependency, add this to `lakefile.lean`:
 
 ```lean
 require FreeRange from git
-  "https://github.com/alok/freerange-lean" @ "main"
+  "https://github.com/alok/freerange-lean" @ "v0.2.0"
 ```
 
-Then import the umbrella module:
+Then:
 
 ```lean
 import FreeRange
 ```
 
-The repository is pinned to `leanprover/lean4:v4.32.0` and has no third-party Lean
-dependencies.
+The release is pinned to `leanprover/lean4:v4.32.0` and has no third-party Lean
+dependencies. Pinning the tag is recommended for reproducible proofs; use `main` only when
+you intentionally want unreleased changes.
 
-## Build and verify
+To inspect or contribute locally:
 
 ```text
-lake build
+git clone https://github.com/alok/freerange-lean.git
+cd freerange-lean
+lake build --wfail
 lake test
 lake exe freerange
 ```
 
-The executable is self-checking: it prints the canonical reports and exits with a
-nonzero status if any report changes unexpectedly.
+The executable prints canonical examples and exits nonzero if an expected report changes.
 
-For the explicit theorem audit:
+## Trust and verification
+
+The Lean source contains no `sorry`, `admit`, custom `axiom`, or `unsafe` declaration.
+With the pinned toolchain, `#print axioms` reports only:
 
 ```text
+'FreeRange.analyze_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'FreeRange.safe_of_no_requirements' depends on axioms: [propext, Classical.choice, Quot.sound]
+```
+
+The representative theorem produced by `freerange` has the same audit. CI runs:
+
+```text
+lake build --wfail
+lake test
+lake exe freerange
+lake env leanchecker
 lake build +Test.Axioms --wfail
 ```
 
+The detailed model and trust boundary live in [`SEMANTICS.md`](SEMANTICS.md).
+
 ## Repository map
 
-| File | Role |
+| Path | Role |
 | --- | --- |
-| `FreeRange/Range.lean` | Abstract bounds, intervals, exclusions, transformers, and local soundness proofs |
-| `FreeRange/Expr.lean` | Embedded syntax, concrete `Option Int` semantics, contexts, and safety |
-| `FreeRange/Analyze.lean` | Guard refinement, requirements, and executable abstract interpreter |
-| `FreeRange/Soundness.lean` | Refinement proofs, whole-analyzer theorem, and safety corollary |
-| `FreeRange/Report.lean` | Stable reports and concrete environment checking |
-| `FreeRange/Tactic.lean` | The `freerange` proof tactic |
-| `Test/` | Compile-time, executable, positive, and negative regression cases |
-| `Main.lean` | Self-checking canonical demonstration |
+| [`FreeRange/Range.lean`](FreeRange/Range.lean) | Bounds, intervals, exclusions, transformers, normalization, and local proofs |
+| [`FreeRange/Expr.lean`](FreeRange/Expr.lean) | Embedded syntax, concrete semantics, variables, contexts, and environments |
+| [`FreeRange/Analyze.lean`](FreeRange/Analyze.lean) | Guard refinement, requirements, and executable abstract interpretation |
+| [`FreeRange/Soundness.lean`](FreeRange/Soundness.lean) | Refinement proofs and whole-analyzer soundness |
+| [`FreeRange/Report.lean`](FreeRange/Report.lean) | Stable/default/named reports and concrete checks |
+| [`FreeRange/Tactic.lean`](FreeRange/Tactic.lean) | The `freerange` tactic |
+| [`Test/Quickstart.lean`](Test/Quickstart.lean) | Compiled public walkthrough |
+| [`Test/`](Test) | Proof, precision, output, negative, and axiom regressions |
+| [`Main.lean`](Main.lean) | Self-checking command-line demonstration |
 
-For the complete contract, read [SPEC.md](SPEC.md). For the mathematical and
-trust boundary, read [SEMANTICS.md](SEMANTICS.md). For the relationship to the
-original project, read [UPSTREAM.md](UPSTREAM.md).
+The original 0.1 contract is [`SPEC.md`](SPEC.md); the 0.2.0 extension is
+[`POLISH_SPEC.md`](POLISH_SPEC.md). See [`CHANGELOG.md`](CHANGELOG.md) for release
+history, [`CONTRIBUTING.md`](CONTRIBUTING.md) for development rules, and
+[`UPSTREAM.md`](UPSTREAM.md) for precise attribution and design comparison.
 
-## Non-goals in version 0.1
+## Scope and non-goals
 
-FreeRange Lean does not currently parse arbitrary Lean declarations, model
-floating point, analyze arrays or mutable state, summarize recursive functions,
-or maintain relational facts between two unknown inputs. These are explicit
-extension points, not implicit claims.
+FreeRange Lean 0.2.0 does not:
 
-## License
+- inspect arbitrary Lean declarations or compiler IR;
+- prove claims about JavaScript, IEEE-754, Lean `Float`, C `double`, or fixed-width overflow;
+- model arrays, mutable state, loops, recursion, or cross-function summaries;
+- maintain relational facts between two unknown inputs; or
+- search automatically for counterexamples.
 
-FreeRange Lean is available under the MIT License. The upstream project is also
-MIT licensed; attribution and the exact design-comparison revision are recorded
-in [UPSTREAM.md](UPSTREAM.md).
+Extending one of those boundaries requires a concrete semantics, matching abstract
+transformers, and a theorem connecting them. Similar-looking source code is not enough.
+
+## Citation, attribution, and license
+
+Software citation metadata is available in [`CITATION.cff`](CITATION.cff). FreeRange Lean
+is MIT licensed; the upstream FreeRange project is also MIT licensed. Copyright and the
+exact design-comparison revision are documented in [`UPSTREAM.md`](UPSTREAM.md).

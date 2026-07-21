@@ -8,6 +8,10 @@ def x : Var 1 := .at 0
 
 def unconstrained : Context 1 := .uniform .top
 
+def positiveDivisors : Context 1 := .singleton (.closed 2 5)
+
+def positiveRay : Context 1 := .singleton (.atLeast 1)
+
 def guarded : Expr 1 := ifE (x ≠ᵍ 0) (10 / x) 0
 
 def shiftedGuard : Expr 1 := ifE (x ≠ᵍ 4) (10 / (x - 4)) 0
@@ -17,6 +21,8 @@ def equalityFalseBranch : Expr 1 := ifE (x =ᵍ 0) 1 (10 / x)
 def positiveTrueBranch : Expr 1 := ifE (x >ᵍ 0) (10 / x) 0
 
 def positiveFalseBranch : Expr 1 := ifE (x <ᵍ 1) 0 (10 / x)
+
+def preciseNestedDivision : Expr 1 := 100 / (10 / x)
 
 example : Safe unconstrained guarded := by
   freerange
@@ -31,6 +37,12 @@ example : Safe unconstrained positiveTrueBranch := by
   freerange
 
 example : Safe unconstrained positiveFalseBranch := by
+  freerange
+
+example : Safe positiveDivisors preciseNestedDivision := by
+  freerange
+
+example : Safe positiveRay (x / (-2)) := by
   freerange
 
 example : (Requirement.nonzero x).check (.singleton 2) = true := by

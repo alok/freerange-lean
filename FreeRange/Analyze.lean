@@ -134,7 +134,7 @@ def analyze (context : Context inputCount) : Expr inputCount → Analysis inputC
       let requirements :=
         if divisorResult.number.pointExcluded 0 = true then priorRequirements
         else priorRequirements ++ [.nonzero divisor]
-      ⟨.top, requirements⟩
+      ⟨dividendResult.number.ediv divisorResult.number, requirements⟩
   | .minimum left right =>
       let leftResult := analyze context left
       let rightResult := analyze context right

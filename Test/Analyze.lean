@@ -16,6 +16,16 @@ def boundedHundred : Context 1 := .singleton (.closed 0 100)
 
 def crossesZero : Context 1 := .singleton (.closed (-5) 5)
 
+def positiveDivisors : Context 1 := .singleton (.closed 2 5)
+
+def negativeDivisors : Context 1 := .singleton (.closed (-5) (-2))
+
+def positiveRay : Context 1 := .singleton (.atLeast 1)
+
+def negativeRay : Context 1 := .singleton (.atMost (-1))
+
+def nonnegative : Context 1 := .singleton (.atLeast 0)
+
 def unconstrained : Context 1 := .uniform .top
 
 def splitAroundZero : Context 1 :=
@@ -29,6 +39,24 @@ def splitAroundZero : Context 1 :=
 
 #guard analyze crossesZero (10 / x) ==
   { number := .top, requirements := [.nonzero x] }
+
+#guard analyze positiveDivisors (10 / x) ==
+  { number := .closed 2 5, requirements := [] }
+
+#guard analyze negativeDivisors (10 / x) ==
+  { number := .closed (-5) (-2), requirements := [] }
+
+#guard analyze positiveRay (10 / x) ==
+  { number := .closed 0 10, requirements := [] }
+
+#guard analyze negativeRay (10 / x) ==
+  { number := .closed (-10) 0, requirements := [] }
+
+#guard analyze nonnegative (x / 2) ==
+  { number := .atLeast 0, requirements := [] }
+
+#guard analyze positiveRay (x / (-2)) ==
+  { number := .atMost 0, requirements := [] }
 
 #guard (analyze unconstrained (ifE (x ≠ᵍ 0) (10 / x) 0)).requirements == []
 
@@ -47,9 +75,15 @@ def splitAroundZero : Context 1 :=
 
 #guard (analyze unconstrained (ifE (x <ᵍ 0) (10 / x) 0)).requirements == []
 
+#guard (analyze unconstrained (ifE (x <ᵍ 0) (10 / x) 0)).number ==
+  .closed (-10) 0
+
 #guard (analyze unconstrained (ifE (x ≤ᵍ (-1)) (10 / x) 0)).requirements == []
 
 #guard (analyze unconstrained (ifE (x >ᵍ 0) (10 / x) 0)).requirements == []
+
+#guard (analyze unconstrained (ifE (x >ᵍ 0) (10 / x) 0)).number ==
+  .closed 0 10
 
 #guard (analyze unconstrained (ifE (x ≥ᵍ 1) (10 / x) 0)).requirements == []
 
@@ -67,5 +101,11 @@ def splitAroundZero : Context 1 :=
 #guard (analyze unconstrained (x * x)).number == .top
 
 #guard (analyze boundedHundred (x * x)).number == .closed 0 10000
+
+#guard analyze positiveDivisors (100 / (10 / x)) ==
+  { number := .closed 20 50, requirements := [] }
+
+#guard analyze (.singleton (.closed 2 20)) (100 / (10 / x)) ==
+  { number := .top, requirements := [.nonzero (10 / x)] }
 
 end FreeRangeTest.Analyze

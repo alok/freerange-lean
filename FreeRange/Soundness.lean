@@ -162,7 +162,8 @@ theorem analyze_sound (context : Context inputCount) (expression : Expr inputCou
           exact AbstractNumber.not_mem_of_pointExcluded hpoint hdivisorMem
         refine ⟨dividendValue / divisorValue, ?_, ?_⟩
         · simp [Expr.eval, hdividendEval, hdivisorEval, hdivisorNonzero]
-        · simp [analyze, hpoint]
+        · simpa [analyze, hpoint] using
+            AbstractNumber.mem_ediv hdividendMem hdivisorMem
       · have hall : Requirements.Hold
             (((analyze context dividend).requirements ++ (analyze context divisor).requirements) ++
               [.nonzero divisor]) environment := by
@@ -187,7 +188,8 @@ theorem analyze_sound (context : Context inputCount) (expression : Expr inputCou
           exact hzero
         refine ⟨dividendValue / divisorValue, ?_, ?_⟩
         · simp [Expr.eval, hdividendEval, hdivisorEval, hdivisorNonzero]
-        · simp [analyze, hpoint]
+        · simpa [analyze, hpoint] using
+            AbstractNumber.mem_ediv hdividendMem hdivisorMem
   | minimum left right leftInduction rightInduction =>
       have hboth : Requirements.Hold
           ((analyze context left).requirements ++ (analyze context right).requirements)

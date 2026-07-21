@@ -195,7 +195,7 @@ precision failure into a false claim.
 Add the Git dependency to a Lake package:
 
 ```lean
-require freerange from git
+require FreeRange from git
   "https://github.com/alok/freerange-lean" @ "main"
 ```
 

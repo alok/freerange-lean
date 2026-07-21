@@ -2,7 +2,8 @@ import Lake
 
 open Lake DSL
 
-package freerange where
+-- Keep the package and root-module names aligned for external declaration checkers.
+package FreeRange where
   version := v!"0.1.0"
   description := "Proof-backed ergonomic range analysis for pure Lean 4 programs"
   license := "MIT"

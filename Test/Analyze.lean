@@ -19,6 +19,9 @@ def crossesZero : Context 1 := fun _ => .closed (-5) 5
 
 def unconstrained : Context 1 := fun _ => .top
 
+def splitAroundZero : Context 1 := fun _ =>
+  AbstractNumber.join (.closed (-5) (-1)) (.closed 1 5)
+
 #guard analyze boundedPair (x2.expr + y2.expr) ==
   { number := .closed 3 13, requirements := [] }
 
@@ -34,6 +37,33 @@ def unconstrained : Context 1 := fun _ => .top
 
 #guard (analyze unconstrained (ifE (x ≠ᵍ 5) (10 / (x.expr - 4)) 0)).requirements ==
   [.nonzero (x.expr - 4)]
+
+#guard analyze splitAroundZero (10 / x.expr) ==
+  { number := .top, requirements := [] }
+
+#guard (analyze unconstrained (10 / (10 / x.expr))).requirements ==
+  [.nonzero x.expr, .nonzero (10 / x.expr)]
+
+#guard (analyze unconstrained (ifE (x =ᵍ 0) 1 (10 / x.expr))).requirements == []
+
+#guard (analyze unconstrained (ifE (x <ᵍ 0) (10 / x.expr) 0)).requirements == []
+
+#guard (analyze unconstrained (ifE (x ≤ᵍ (-1)) (10 / x.expr) 0)).requirements == []
+
+#guard (analyze unconstrained (ifE (x >ᵍ 0) (10 / x.expr) 0)).requirements == []
+
+#guard (analyze unconstrained (ifE (x ≥ᵍ 1) (10 / x.expr) 0)).requirements == []
+
+#guard (analyze unconstrained (ifE (x <ᵍ 1) 0 (10 / x.expr))).requirements == []
+
+#guard (analyze unconstrained (ifE (x ≤ᵍ 0) 0 (10 / x.expr))).requirements == []
+
+#guard (analyze unconstrained (ifE (x >ᵍ (-1)) 0 (10 / x.expr))).requirements == []
+
+#guard (analyze unconstrained (ifE (x ≥ᵍ 0) 0 (10 / x.expr))).requirements == []
+
+#guard (analyze unconstrained (ifE (x =ᵍ 0) (10 / (0 : Expr 1)) 1)).requirements ==
+  [.nonzero 0]
 
 #guard (analyze unconstrained (x.expr * x.expr)).number == .top
 

@@ -16,6 +16,18 @@ namespace FreeRangeTest.Range
 #guard AbstractNumber.scale 3 (AbstractNumber.top.exclude 0) ==
   { interval := Interval.top, excluded := some 0 }
 
+#guard AbstractNumber.scale (-3) (AbstractNumber.closed 1 4) ==
+  { interval := Interval.closed (-12) (-3), excluded := some 0 }
+
+#guard AbstractNumber.minimum (AbstractNumber.closed (-5) 10) (AbstractNumber.closed 2 7) ==
+  AbstractNumber.closed (-5) 7
+
+#guard AbstractNumber.maximum (AbstractNumber.closed (-5) 10) (AbstractNumber.closed 2 7) ==
+  AbstractNumber.closed 2 10
+
+#guard AbstractNumber.absolute (AbstractNumber.closed (-7) 3) ==
+  AbstractNumber.closed 0 7
+
 #guard AbstractNumber.mul AbstractNumber.top AbstractNumber.top == AbstractNumber.top
 
 example {left right : AbstractNumber} {x y : Int}

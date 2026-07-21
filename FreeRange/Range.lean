@@ -237,6 +237,28 @@ theorem mem_scale {interval : Interval} {coefficient value : Int}
             simp [scale, hzero, hpositive, Mem, LowerBound.Holds, UpperBound.Holds] at h ⊢
             exact Int.mul_le_mul_of_nonpos_left hnonpositive h
 
+/-- Intersect an interval with a finite lower bound. -/
+def restrictLower (interval : Interval) (lower : Int) : Interval :=
+  ⟨interval.lower.max (.finite lower), interval.upper⟩
+
+theorem mem_restrictLower {interval : Interval} {lower value : Int}
+    (hmem : interval.Mem value) (hbound : lower ≤ value) :
+    (interval.restrictLower lower).Mem value := by
+  rcases interval with ⟨oldLower, upper⟩
+  cases oldLower <;> cases upper <;>
+    grind [restrictLower, Mem, LowerBound.max, LowerBound.Holds, UpperBound.Holds, intMax]
+
+/-- Intersect an interval with a finite upper bound. -/
+def restrictUpper (interval : Interval) (upper : Int) : Interval :=
+  ⟨interval.lower, interval.upper.min (.finite upper)⟩
+
+theorem mem_restrictUpper {interval : Interval} {upper value : Int}
+    (hmem : interval.Mem value) (hbound : value ≤ upper) :
+    (interval.restrictUpper upper).Mem value := by
+  rcases interval with ⟨lower, oldUpper⟩
+  cases lower <;> cases oldUpper <;>
+    grind [restrictUpper, Mem, UpperBound.min, LowerBound.Holds, UpperBound.Holds, intMin]
+
 /-- Interval image of integer minimum. -/
 def minimum (left right : Interval) : Interval :=
   ⟨left.lower.min right.lower, left.upper.min right.upper⟩
@@ -458,6 +480,24 @@ theorem mem_scale {abstract : AbstractNumber} {coefficient value : Int}
     have hproduct : coefficient * value ≠ 0 := Int.mul_ne_zero hcoefficient hvalue
     simpa [scale, hcoefficient, hpoint, eq_comm] using hproduct
   · simp [scale, hcoefficient, hpoint]
+
+/-- Intersect an abstract number with a finite lower bound. -/
+def restrictLower (abstract : AbstractNumber) (lower : Int) : AbstractNumber :=
+  { abstract with interval := abstract.interval.restrictLower lower }
+
+theorem mem_restrictLower {abstract : AbstractNumber} {lower value : Int}
+    (hmem : abstract.Mem value) (hbound : lower ≤ value) :
+    (abstract.restrictLower lower).Mem value :=
+  ⟨Interval.mem_restrictLower hmem.1 hbound, hmem.2⟩
+
+/-- Intersect an abstract number with a finite upper bound. -/
+def restrictUpper (abstract : AbstractNumber) (upper : Int) : AbstractNumber :=
+  { abstract with interval := abstract.interval.restrictUpper upper }
+
+theorem mem_restrictUpper {abstract : AbstractNumber} {upper value : Int}
+    (hmem : abstract.Mem value) (hbound : value ≤ upper) :
+    (abstract.restrictUpper upper).Mem value :=
+  ⟨Interval.mem_restrictUpper hmem.1 hbound, hmem.2⟩
 
 /-- Abstract multiplication. It is precise when either operand is exact and otherwise returns top. -/
 def mul (left right : AbstractNumber) : AbstractNumber :=

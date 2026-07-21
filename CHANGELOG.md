@@ -3,6 +3,45 @@
 All notable changes to FreeRange Lean are recorded here. The project follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-07-21
+
+### Added
+
+- `Interval.edivConst` and its membership theorem for exact nonzero divisors over finite,
+  one-sided, and fully unbounded dividends.
+- Proved four-corner quotient hulls for finite wholly positive and wholly negative divisor
+  intervals.
+- Proved zero-inclusive quotient hulls for finite dividends over one-sided sign-stable
+  divisor rays.
+- `AbstractNumber.ediv`, with sound exclusion transport for the injective divisors `1` and
+  `-1` only.
+- A normative division specification plus transformer, analyzer, composition, report,
+  executable, and compiled-quickstart regressions.
+
+### Changed
+
+- Division analysis now reports proved quotient bounds for supported sign-stable ranges
+  instead of always returning the top interval after establishing safety.
+- Guard-refined positive and negative divisor rays compose with quotient analysis; for
+  example, `if x > 0 then 10 / x else 0` reports `[0, 10]` with no requirements.
+- A quotient whose bounds prove zero absent can discharge a later division requirement.
+- Documentation now states Lean's Euclidean `Int` division semantics and separates safety
+  requirements from range precision.
+
+### Precision boundaries
+
+- A divisor interval that straddles zero still yields the top quotient interval, even when
+  its separate excluded point removes zero.
+- Unsupported unbounded non-singleton combinations retain the top fallback.
+- Ray hulls conservatively include zero and are not claimed to be minimal.
+
+### Compatibility
+
+- The embedded language, concrete evaluator, requirement inference order, and public
+  soundness theorem statements are unchanged.
+- Existing 0.2.0 programs remain source-compatible. Reports for sign-stable division may be
+  strictly narrower, which is the intended observable minor-release improvement.
+
 ## [0.2.0] - 2026-07-21
 
 ### Added
@@ -40,5 +79,6 @@ All notable changes to FreeRange Lean are recorded here. The project follows
 - Division requirements, deterministic reports, concrete point checks, the `freerange`
   tactic, executable examples, CI, axiom guards, and standalone environment checking.
 
+[0.3.0]: https://github.com/alok/freerange-lean/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/alok/freerange-lean/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/alok/freerange-lean/releases/tag/v0.1.0

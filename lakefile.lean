@@ -4,8 +4,8 @@ open Lake DSL
 
 -- Keep the package and root-module names aligned for external declaration checkers.
 package FreeRange where
-  version := v!"0.2.0"
-  description := "Proof-backed ergonomic range analysis for pure Lean 4 programs"
+  version := v!"0.3.0"
+  description := "Proof-backed range analysis for embedded exact-Int expressions"
   license := "MIT"
   builtinLint := true
   restoreAllArtifacts := true

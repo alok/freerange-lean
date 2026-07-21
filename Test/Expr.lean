@@ -4,11 +4,11 @@ open FreeRange
 
 namespace FreeRangeTest.Expr
 
-def x : Var 1 := ⟨0⟩
+def x : Var 1 := .at 0
 
-def five : Env 1 := fun _ => 5
+def five : Env 1 := .singleton 5
 
-def zero : Env 1 := fun _ => 0
+def zero : Env 1 := .singleton 0
 
 def x2 : Var 2 := .at 0
 
@@ -23,19 +23,19 @@ def operatorSurface : List (Expr 2) := [
   x2 / y2, x2 / (y2 + y2), (x2 + x2) / y2
 ]
 
-#guard ((10 / x.expr : Expr 1).eval five) == some 2
+#guard ((10 / x : Expr 1).eval five) == some 2
 
-#guard ((10 / x.expr : Expr 1).eval zero) == none
+#guard ((10 / x : Expr 1).eval zero) == none
 
 #guard ((10 / x : Expr 1).eval five) == some 2
 
 #guard ((x - 4 : Expr 1).eval five) == some 1
 
-#guard ((ifE (x ≠ᵍ 0) (10 / x.expr) 0).eval five) == some 2
+#guard ((ifE (x ≠ᵍ 0) (10 / x) 0).eval five) == some 2
 
-#guard ((ifE (x ≠ᵍ 0) (10 / x.expr) 0).eval zero) == some 0
+#guard ((ifE (x ≠ᵍ 0) (10 / x) 0).eval zero) == some 0
 
-#guard ((maxE 10 (minE x.expr 90)).eval five) == some 10
+#guard ((maxE 10 (minE x 90)).eval five) == some 10
 
 #guard operatorSurface.length == 12
 

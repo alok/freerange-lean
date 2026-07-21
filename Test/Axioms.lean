@@ -20,12 +20,12 @@ namespace FreeRangeTest.Axioms
 
 open FreeRange
 
-def x : Var 1 := ⟨0⟩
+def x : Var 1 := .at 0
 
-def unconstrained : Context 1 := fun _ => .top
+def unconstrained : Context 1 := .uniform .top
 
 theorem freerange_example :
-    Safe unconstrained (ifE (x ≠ᵍ 0) (10 / x.expr) 0) := by
+    Safe unconstrained (ifE (x ≠ᵍ 0) (10 / x) 0) := by
   freerange
 
 /--

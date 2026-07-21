@@ -1,6 +1,6 @@
 # Semantics, soundness, and trust boundary
 
-This document fixes the meaning of a FreeRange Lean 0.2.0 result. It is normative
+This document fixes the meaning of a FreeRange Lean 0.3.0 result. It is normative
 for claims made by this repository.
 
 ## What is being analyzed
@@ -32,13 +32,17 @@ the corresponding abstract number.
 - Constants and inputs evaluate directly.
 - Negation, addition, subtraction, multiplication, `min`, `max`, and absolute
   value use Lean's exact unbounded integer operations.
-- Division uses Lean's `Int` division operation when the divisor is nonzero.
+- Division uses Lean's Euclidean `Int` division operation when the divisor is nonzero.
 - Division by zero evaluates to `none`.
 - Evaluation is strict: a failed subexpression makes its enclosing expression
   fail.
 - A conditional evaluates only the branch selected by its guard.
 
-Division by zero is the only concrete failure in version 0.2.0. The semantics has no
+For a positive divisor, Lean `Int` division rounds toward negative infinity. Negative
+divisors satisfy `a / (-b) = -(a / b)`. This is not rational division or truncation toward
+zero.
+
+Division by zero is the only concrete failure in version 0.3.0. The semantics has no
 overflow, underflow, rounding, `NaN`, or numeric infinity. The infinity symbols in
 a report are abstract unbounded endpoints, not concrete values.
 
@@ -156,8 +160,32 @@ The analyzer first analyzes both operands. If the abstract divisor already prove
 that zero is absent, it adds no new requirement. Otherwise it appends
 `nonzero divisor`.
 
-After establishing this safety condition, version 0.2.0 returns the top abstract
-number for the quotient. It makes no quotient-bound claim.
+Range precision is computed independently from that safety decision:
+
+- An exact nonzero singleton divisor maps every available dividend endpoint. Positive
+  divisors preserve endpoint order, negative divisors reverse it, and unbounded dividend
+  endpoints remain unbounded in the corresponding output direction.
+- A finite dividend and finite wholly positive divisor interval use the minimum and maximum
+  of the four endpoint quotients. A wholly negative divisor interval reduces to its negated
+  positive interval and negates the quotient hull.
+- A finite dividend and one-sided wholly positive divisor ray use the hull of the two finite
+  endpoint quotients and zero. A negative divisor ray again reduces by negation. Including
+  zero is deliberately conservative and can be wider than the smallest valid integer hull.
+- Every remaining case returns the top interval. In particular, a zero-straddling divisor
+  interval remains top even if the abstract number's separate excluded point removes zero.
+
+`Interval.mem_edivConst`, `Interval.mem_quotientHull_of_pos`,
+`Interval.mem_quotientRayHull_of_pos`, and `Interval.mem_ediv` establish the local interval
+claims. `AbstractNumber.mem_ediv` lifts them through normalization, and `analyze_sound` uses
+that theorem after separately proving the concrete divisor nonzero.
+
+An excluded dividend point is transported only for an exact divisor `1` or `-1`; the latter
+negates the point. Division by any larger absolute value is not injective, so other
+exclusions are forgotten. The resulting interval bounds can still prove zero absent and
+discharge a later division requirement compositionally.
+
+These cases are sound over-approximations. Version 0.3.0 does not claim that every returned
+quotient interval is minimal.
 
 ## Requirements
 
@@ -179,7 +207,7 @@ their particular input does not take, and even from an abstractly unreachable
 branch. The contract can therefore be stronger than necessary, never weaker than
 the theorem needs.
 
-Requirements are not deduplicated or simplified in version 0.2.0.
+Requirements are not deduplicated or simplified in version 0.3.0.
 
 ## Whole-analyzer theorem
 
@@ -227,7 +255,7 @@ requirements rather than use the requirement-free tactic.
 ## JavaScript and floating-point boundary
 
 The original TypeScript FreeRange analyzes JavaScript-style numeric programs and
-tracks phenomena such as non-finite values and integrality. FreeRange Lean 0.2.0
+tracks phenomena such as non-finite values and integrality. FreeRange Lean 0.3.0
 does none of that.
 
 In particular, a FreeRange Lean proof about `Expr n` does not establish that a

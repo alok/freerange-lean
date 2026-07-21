@@ -12,7 +12,8 @@ in `lean-toolchain`. FreeRange has no third-party Lean dependencies.
 Before editing behavior, read:
 
 - [`SPEC.md`](SPEC.md) for the original semantic contract;
-- [`POLISH_SPEC.md`](POLISH_SPEC.md) for the 0.2.0 additions; and
+- [`POLISH_SPEC.md`](POLISH_SPEC.md) for the 0.2.0 additions;
+- [`DIVISION_SPEC.md`](DIVISION_SPEC.md) for the 0.3.0 quotient cases and fallbacks; and
 - [`SEMANTICS.md`](SEMANTICS.md) for the precise claim and trust boundary.
 
 ## Verify a change

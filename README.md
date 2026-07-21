@@ -92,6 +92,43 @@ Finite bounded multiplication uses the standard four endpoint products. For
 `a*c`, `a*d`, `b*c`, and `b*d`. `Interval.mem_productHull` proves that every
 concrete product belongs to that interval.
 
+## Sign-stable division
+
+When the divisor range stays wholly on one side of zero, division now retains useful
+quotient bounds:
+
+```lean
+def positiveDivisors : Context 1 := .singleton (.closed 2 5)
+
+#eval IO.println (report positiveDivisors (10 / x))
+-- range: [2, 5]
+-- requires: none
+
+example : Safe positiveDivisors (10 / x) := by
+  freerange
+```
+
+The analyzer uses Lean's exact `Int` Euclidean division. This is not rational division or
+truncation toward zero: division by a positive integer rounds toward negative infinity, and
+Lean fixes negative divisors by `a / (-b) = -(a / b)`.
+
+Finite dividend and divisor intervals use a proved four-corner quotient hull when every
+divisor is positive or every divisor is negative. A finite dividend over a one-sided
+sign-stable divisor ray uses a conservative hull that also includes zero. Exact nonzero
+singleton divisors preserve one-sided unbounded dividend ranges. For example, guard
+refinement composes with the ray case:
+
+```lean
+#eval IO.println (report unconstrained (ifE (x >ᵍ 0) (10 / x) 0))
+-- range: [0, 10]
+-- requires: none
+```
+
+Possible zero still produces the same `nonzero` safety requirement. A divisor interval that
+straddles zero retains the top quotient fallback even if its one stored exclusion removes
+zero; representing the two disjoint sign regions would require a richer domain. These hulls
+are proved conservative, not claimed to be the narrowest representable intervals.
+
 ## Named reports and concrete checks
 
 Default reports retain the stable names `x0`, `x1`, and so on. Presentation names can be
@@ -204,11 +241,11 @@ theorem safe_of_no_requirements
 ```
 
 Every transformer used by `analyze` has a local membership theorem, including joins,
-guard refinements, canonicalization, and the finite multiplication hull.
+guard refinements, canonicalization, finite multiplication, and sign-stable division.
 
 ## Precision, honestly
 
-Soundness does not imply maximal precision. Version 0.2.0 deliberately uses a small,
+Soundness does not imply maximal precision. Version 0.3.0 deliberately uses a small,
 auditable nonrelational domain:
 
 | Operation | Abstract behavior |
@@ -217,12 +254,16 @@ auditable nonrelational domain:
 | Negation, addition, subtraction | Interval image, retaining the zero-exclusion facts needed by guarded division |
 | Multiplication | Exact scaling for a singleton; four-corner hull for two finite intervals; top interval for an unbounded nonconstant pair |
 | `minE`, `maxE`, `absE` | Proved interval images; excluded-point detail may be forgotten |
-| Division | Prove or infer a nonzero divisor requirement, then return the top interval |
+| Division | Exact nonzero divisor mapping; four-corner finite sign-stable hull; zero-inclusive sign-stable ray hull; top fallback otherwise |
 | `ifE` | Refine each branch, join result ranges, and combine requirements path-insensitively |
 
 Multiplication excludes zero when both operands prove zero absent, including on the
 unbounded fallback. A single nonzero factor is insufficient because the other factor may be
 zero.
+
+Division retains an excluded dividend point only for exact divisor `1` or `-1`. Integer
+division by a larger absolute divisor is not injective, so carrying the exclusion would be
+unsound. Requirement inference remains separate from range precision.
 
 The domain stores only one excluded point. Requirements are not deduplicated or simplified,
 and both branches contribute requirements even when one is unreachable for a particular
@@ -235,7 +276,7 @@ For a released dependency, add this to `lakefile.lean`:
 
 ```lean
 require FreeRange from git
-  "https://github.com/alok/freerange-lean" @ "v0.2.0"
+  "https://github.com/alok/freerange-lean" @ "v0.3.0"
 ```
 
 Then:
@@ -297,14 +338,15 @@ The detailed model and trust boundary live in [`SEMANTICS.md`](SEMANTICS.md).
 | [`Test/`](Test) | Proof, precision, output, negative, and axiom regressions |
 | [`Main.lean`](Main.lean) | Self-checking command-line demonstration |
 
-The original 0.1 contract is [`SPEC.md`](SPEC.md); the 0.2.0 extension is
-[`POLISH_SPEC.md`](POLISH_SPEC.md). See [`CHANGELOG.md`](CHANGELOG.md) for release
+The original 0.1 contract is [`SPEC.md`](SPEC.md), the 0.2.0 extension is
+[`POLISH_SPEC.md`](POLISH_SPEC.md), and the 0.3.0 division contract is
+[`DIVISION_SPEC.md`](DIVISION_SPEC.md). See [`CHANGELOG.md`](CHANGELOG.md) for release
 history, [`CONTRIBUTING.md`](CONTRIBUTING.md) for development rules, and
 [`UPSTREAM.md`](UPSTREAM.md) for precise attribution and design comparison.
 
 ## Scope and non-goals
 
-FreeRange Lean 0.2.0 does not:
+FreeRange Lean 0.3.0 does not:
 
 - inspect arbitrary Lean declarations or compiler IR;
 - prove claims about JavaScript, IEEE-754, Lean `Float`, C `double`, or fixed-width overflow;

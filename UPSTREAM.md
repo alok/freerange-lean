@@ -31,7 +31,7 @@ analysis and human-readable reports.
 
 The implementation and claim boundaries differ substantially:
 
-| Concern | Upstream FreeRange | FreeRange Lean 0.2.0 |
+| Concern | Upstream FreeRange | FreeRange Lean 0.3.0 |
 | --- | --- | --- |
 | Host and input | TypeScript tooling over a JavaScript-like program model | Pure Lean library over explicit `Expr n` values |
 | Concrete numbers | JavaScript IEEE-754 binary64 behavior | Unbounded exact Lean `Int` |

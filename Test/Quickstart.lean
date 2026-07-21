@@ -67,6 +67,9 @@ def divisorName : InputNames 1 := .singleton "divisor"
 #guard reportWithNames positiveDivisors (10 / x) divisorName ==
   "range: [2, 5]\nrequires: none"
 
+#guard report positiveDivisors (10 / x) ==
+  "range: [2, 5]\nrequires: none"
+
 example : Safe positiveDivisors (10 / x) := by
   freerange
 

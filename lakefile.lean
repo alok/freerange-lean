@@ -7,6 +7,8 @@ package FreeRange where
   version := v!"0.2.0"
   description := "Proof-backed ergonomic range analysis for pure Lean 4 programs"
   license := "MIT"
+  builtinLint := true
+  restoreAllArtifacts := true
 
 lean_lib FreeRange
 

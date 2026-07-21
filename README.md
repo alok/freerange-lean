@@ -276,6 +276,7 @@ The representative theorem produced by `freerange` has the same audit. CI runs:
 lake build --wfail
 lake test
 lake exe freerange
+lake lint FreeRange --lint-only=linter.all
 lake env leanchecker
 lake build +Test.Axioms --wfail
 ```

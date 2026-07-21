@@ -4,11 +4,17 @@ namespace FreeRange
 
 /-- The six input-to-constant comparisons supported by branch refinement. -/
 inductive Comparison where
+  /-- Integer equality. -/
   | eq
+  /-- Integer disequality. -/
   | ne
+  /-- Strict less-than. -/
   | lt
+  /-- Non-strict less-than. -/
   | le
+  /-- Strict greater-than. -/
   | gt
+  /-- Non-strict greater-than. -/
   | ge
   deriving Repr, DecidableEq, BEq
 
@@ -37,28 +43,43 @@ end Comparison
 
 /-- A guard compares one input with a fixed exact integer. -/
 structure Guard (inputCount : Nat) where
+  /-- The input inspected by the guard. -/
   input : Fin inputCount
+  /-- The comparison applied to the input and constant. -/
   comparison : Comparison
+  /-- The exact integer on the right-hand side. -/
   constant : Int
   deriving Repr, DecidableEq, BEq
 
 /-- The embedded exact-integer expression language analyzed by FreeRange. -/
 inductive Expr (inputCount : Nat) where
+  /-- An exact integer constant. -/
   | const (value : Int)
+  /-- One input selected by its finite index. -/
   | input (index : Fin inputCount)
+  /-- Integer negation. -/
   | neg (value : Expr inputCount)
+  /-- Integer addition. -/
   | add (left right : Expr inputCount)
+  /-- Integer subtraction. -/
   | sub (left right : Expr inputCount)
+  /-- Integer multiplication. -/
   | mul (left right : Expr inputCount)
+  /-- Partial integer division, undefined when the divisor is zero. -/
   | div (dividend divisor : Expr inputCount)
+  /-- Integer minimum. -/
   | minimum (left right : Expr inputCount)
+  /-- Integer maximum. -/
   | maximum (left right : Expr inputCount)
+  /-- Exact integer absolute value. -/
   | absolute (value : Expr inputCount)
+  /-- A conditional selected by an input-to-constant guard. -/
   | ite (guard : Guard inputCount) (thenBranch elseBranch : Expr inputCount)
   deriving Repr, DecidableEq, BEq
 
 /-- One named input for readable expression and guard construction. -/
 structure Var (inputCount : Nat) where
+  /-- The corresponding input index. -/
   index : Fin inputCount
   deriving Repr, DecidableEq, BEq
 

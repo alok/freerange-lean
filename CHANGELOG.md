@@ -23,6 +23,8 @@ All notable changes to FreeRange Lean are recorded here. The project follows
 - Multiplication preserves a zero exclusion when both operands prove zero absent, including
   on the deliberately unbounded fallback path.
 - Examples and the self-checking executable use the concise public construction API.
+- Lake restores complete cached artifacts so standalone declaration checkers work after a
+  clean build.
 
 ### Compatibility
 

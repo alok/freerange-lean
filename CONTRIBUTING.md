@@ -23,6 +23,7 @@ Run the same gates as CI:
 lake build --wfail
 lake test
 lake exe freerange
+lake lint FreeRange --lint-only=linter.all
 lake env leanchecker
 lake build +Test.Axioms --wfail
 ```

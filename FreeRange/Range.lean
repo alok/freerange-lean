@@ -10,13 +10,17 @@ def intMax (left right : Int) : Int := if left ≤ right then right else left
 
 /-- A lower interval endpoint. `negInf` is smaller than every concrete integer. -/
 inductive LowerBound where
+  /-- No finite lower endpoint. -/
   | negInf
+  /-- An inclusive finite lower endpoint. -/
   | finite (value : Int)
   deriving Repr, DecidableEq, BEq
 
 /-- An upper interval endpoint. `posInf` is larger than every concrete integer. -/
 inductive UpperBound where
+  /-- An inclusive finite upper endpoint. -/
   | finite (value : Int)
+  /-- No finite upper endpoint. -/
   | posInf
   deriving Repr, DecidableEq, BEq
 
@@ -90,7 +94,9 @@ end UpperBound
 
 /-- A possibly unbounded closed interval of exact integers. -/
 structure Interval where
+  /-- The inclusive lower endpoint, possibly negative infinity. -/
   lower : LowerBound
+  /-- The inclusive upper endpoint, possibly positive infinity. -/
   upper : UpperBound
   deriving Repr, DecidableEq, BEq
 
@@ -429,7 +435,9 @@ end Interval
 
 /-- An interval with at most one concrete point removed. -/
 structure AbstractNumber where
+  /-- The interval over-approximating the represented integers. -/
   interval : Interval
+  /-- At most one integer removed from the interval. -/
   excluded : Option Int := none
   deriving Repr, DecidableEq, BEq
 

@@ -28,6 +28,9 @@ jobs:
       - name: Run the self-checking examples
         run: lake exe freerange
 
+      - name: Lint the public library
+        run: lake lint FreeRange --lint-only=linter.all
+
       - name: Reject proof placeholders and custom axioms
         run: |
           if rg -n '\b(sorry|admit|axiom|unsafe)\b' --glob '*.lean' .; then

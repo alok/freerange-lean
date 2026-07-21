@@ -47,6 +47,7 @@ end Context
 
 /-- A condition that callers must satisfy for an expression to evaluate safely. -/
 inductive Requirement (inputCount : Nat) where
+  /-- The expression must evaluate successfully to a nonzero integer. -/
   | nonzero (expression : Expr inputCount)
   deriving Repr, DecidableEq, BEq
 
@@ -98,7 +99,9 @@ end Requirements
 
 /-- The inferred result range and caller requirements for one expression. -/
 structure Analysis (inputCount : Nat) where
+  /-- An abstract number containing every result covered by the theorem. -/
   number : AbstractNumber
+  /-- Caller obligations sufficient for successful evaluation. -/
   requirements : List (Requirement inputCount)
   deriving Repr, DecidableEq, BEq
 

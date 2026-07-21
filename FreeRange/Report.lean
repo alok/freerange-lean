@@ -153,9 +153,13 @@ def reportWithNames (context : Context inputCount) (expression : Expr inputCount
 
 /-- The result of checking one concrete environment against an analysis. -/
 inductive CheckResult (inputCount : Nat) where
+  /-- One concrete input is not covered by its abstract context entry. -/
   | inputOutsideContext (index : Fin inputCount) (value : Int) (expected : AbstractNumber)
+  /-- The first inferred caller requirement that does not hold. -/
   | requirementFailed (requirement : Requirement inputCount)
+  /-- Successful concrete evaluation. -/
   | value (value : Int)
+  /-- Evaluation failed despite all inferred requirements passing. -/
   | evaluationFailed
   deriving Repr, DecidableEq, BEq
 
